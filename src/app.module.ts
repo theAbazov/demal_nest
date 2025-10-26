@@ -9,6 +9,9 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { PartnersModule } from './partners/partners.module';
 import { ToursModule } from './tours/tours.module';
+import { UploadModule } from './upload/upload.module';
+import { BookingsModule } from './bookings/bookings.module';
+import { ReviewsModule } from './reviews/reviews.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -21,6 +24,9 @@ import { RolesGuard } from './common/guards/roles.guard';
     UsersModule,
     PartnersModule,
     ToursModule,
+    UploadModule,
+    BookingsModule,
+    ReviewsModule,
   ],
   controllers: [AppController],
   providers: [

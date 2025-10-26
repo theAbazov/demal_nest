@@ -1,6 +1,11 @@
 import { IsNotEmpty, IsString, Matches, Length } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class VerifyOtpDto {
+  @ApiProperty({
+    description: 'Номер телефона в формате +996XXXXXXXXX',
+    example: '+996555123456',
+  })
   @IsNotEmpty()
   @IsString()
   @Matches(/^\+996\d{9}$/, {
@@ -8,6 +13,10 @@ export class VerifyOtpDto {
   })
   phone_number: string;
 
+  @ApiProperty({
+    description: '4-значный OTP код',
+    example: '1234',
+  })
   @IsNotEmpty()
   @IsString()
   @Length(4, 4, { message: 'OTP code must be 4 digits' })
