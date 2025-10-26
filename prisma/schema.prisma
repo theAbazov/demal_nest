@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CLIENT
+  PARTNER
+  ADMIN
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum TourStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum BookingStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
+enum OtpChannel {
+  SMS
+  WHATSAPP
+  TELEGRAM
+}
+
+model User {
+  id           String   @id @default(uuid()) @map("user_id")
+  phoneNumber  String   @unique @map("phone_number") @db.VarChar(20)
+  fullName     String?  @map("full_name") @db.VarChar(255)
+  role         Role     @default(CLIENT)
+  createdAt    DateTime @default(now()) @map("created_at")
+  isNewUser    Boolean  @default(true) @map("is_new_user")
+  imageUrl     String?  @map("image_url") @db.VarChar(500)
+
+  partnerProfile PartnerProfile?
+  bookings       Booking[]
+  reviews        Review[]
+  toursOrganized Tour[] @relation("OrganizerTours")
+
+  @@map("users")
+}
+
+model PartnerProfile {
+  id                   String             @id @default(uuid()) @map("profile_id")
+  userId               String             @unique @map("user_id")
+  companyName          String             @map("company_name") @db.VarChar(255)
+  description          String?            @db.Text
+  documentsUrl         String?            @map("documents_url") @db.VarChar(500)
+  verificationStatus   VerificationStatus @default(PENDING) @map("verification_status")
+  verificationComment  String?            @map("verification_comment") @db.Text
+  cardNumber           String?            @map("card_number") @db.VarChar(20)
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("partner_profiles")
+}
+
+model Tour {
+  id                 String      @id @default(uuid()) @map("tour_id")
+  title              String      @db.VarChar(255)
+  mainImageUrl       String      @map("main_image_url") @db.VarChar(500)
+  location           String      @db.VarChar(255)
+  tourType           String      @db.VarChar(255)
+  date               DateTime    @db.Date
+  time               String      @db.VarChar(8)
+  price              Decimal     @db.Decimal(10, 2)
+  currency           String      @default("KGS") @db.VarChar(3)
+  availableSpots     Int         @map("available_spots")
+  description        String?     @db.Text
+  program            Json?
+  meetingPoint       Json?       @map("meeting_point")
+  whatsIncluded      String[]    @map("whats_included")
+  whatsNotIncluded   String[]    @map("whats_not_included")
+  whatToBring        String?     @map("what_to_bring") @db.Text
+  imageGalleryUrls   String[]    @map("image_gallery_urls")
+  organizerId        String      @map("organizer_id")
+  status             TourStatus  @default(ACTIVE)
+  createdAt          DateTime    @default(now()) @map("created_at")
+  updatedAt          DateTime    @updatedAt @map("updated_at")
+
+  organizer  User     @relation("OrganizerTours", fields: [organizerId], references: [id])
+  bookings   Booking[]
+  reviews    Review[]
+
+  @@map("tours")
+}
+
+model Booking {
+  id          String        @id @default(uuid()) @map("booking_id")
+  tourId      String        @map("tour_id")
+  userId      String        @map("user_id")
+  seatsCount  Int           @map("seats_count")
+  totalAmount Decimal       @map("total_amount") @db.Decimal(10, 2)
+  status      BookingStatus @default(PENDING)
+  name        String        @db.VarChar(255)
+  email       String?       @db.VarChar(255)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  tour Tour @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("bookings")
+}
+
+model Review {
+  id        String   @id @default(uuid()) @map("review_id")
+  tourId    String   @map("tour_id")
+  userId    String   @map("user_id")
+  rating    Int      @db.SmallInt
+  text      String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tour Tour @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tourId, userId])
+  @@map("reviews")
+}
+
+model OtpSession {
+  id          String     @id @default(uuid()) @map("session_id")
+  phoneNumber String     @map("phone_number") @db.VarChar(20)
+  otpCode     String     @map("otp_code") @db.VarChar(6)
+  channel     OtpChannel
+  attempts    Int        @default(0)
+  expiresAt   DateTime   @map("expires_at")
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  @@map("otp_sessions")
+}
