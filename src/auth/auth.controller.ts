@@ -15,7 +15,17 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Отправить OTP код на номер телефона' })
   @ApiBody({ type: SendOtpDto })
-  @ApiResponse({ status: 200, description: 'OTP код отправлен' })
+  @ApiResponse({
+    status: 200,
+    description: 'OTP код отправлен',
+    schema: {
+      example: {
+        success: true,
+        message: 'Код отправлен на номер +996555123456',
+        expires_in: 300,
+      },
+    },
+  })
   @ApiResponse({ status: 400, description: 'Неверный формат телефона' })
   async sendOtp(@Body() dto: SendOtpDto) {
     return await this.authService.sendOtp(dto);

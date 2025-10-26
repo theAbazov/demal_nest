@@ -12,6 +12,7 @@ import { ToursModule } from './tours/tours.module';
 import { UploadModule } from './upload/upload.module';
 import { BookingsModule } from './bookings/bookings.module';
 import { ReviewsModule } from './reviews/reviews.module';
+import { AdminModule } from './admin/admin.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -27,6 +28,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     UploadModule,
     BookingsModule,
     ReviewsModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [

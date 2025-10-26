@@ -49,6 +49,22 @@ export class ToursController {
     return await this.toursService.findOne(tourId);
   }
 
+  @Public()
+  @Get(':tour_id/reviews')
+  @ApiOperation({ summary: 'Получить отзывы тура' })
+  @ApiParam({ name: 'tour_id', description: 'ID тура' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'Список отзывов тура' })
+  @ApiResponse({ status: 404, description: 'Тур не найден' })
+  async getTourReviews(
+    @Param('tour_id') tourId: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20,
+  ) {
+    return await this.toursService.getTourReviews(tourId, page, limit);
+  }
+
   // Partner endpoints
   @Roles('PARTNER')
   @ApiBearerAuth('JWT-auth')

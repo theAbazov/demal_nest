@@ -421,6 +421,55 @@ export class ToursService {
     };
   }
 
+  async getTourReviews(tourId: string, page: number = 1, limit: number = 20) {
+    // Проверяем существование тура
+    const tour = await this.prisma.tour.findUnique({
+      where: { id: tourId },
+    });
+
+    if (!tour) {
+      throw new NotFoundException('Tour not found');
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [reviews, total] = await Promise.all([
+      this.prisma.review.findMany({
+        where: { tourId },
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          user: {
+            select: {
+              id: true,
+              fullName: true,
+              imageUrl: true,
+            },
+          },
+        },
+      }),
+      this.prisma.review.count({ where: { tourId } }),
+    ]);
+
+    return {
+      success: true,
+      reviews: reviews.map((review) => ({
+        review_id: review.id,
+        user: review.user,
+        rating: review.rating,
+        text: review.text,
+        created_at: review.createdAt,
+      })),
+      pagination: {
+        page,
+        limit,
+        total_items: total,
+        total_pages: Math.ceil(total / limit),
+      },
+    };
+  }
+
   private formatTourResponse(tour: any, avgRating?: number | null) {
     return {
       tour_id: tour.id,
