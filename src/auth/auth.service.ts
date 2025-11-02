@@ -42,7 +42,7 @@ export class AuthService {
     };
   }
 
-  async verifyOtp(dto: VerifyOtpDto) {
+  async verifyOtp(dto: VerifyOtpDto, role: 'CLIENT' | 'PARTNER' | 'ADMIN') {
     // Проверяем, существует ли активная OTP сессия
     const otpSession = await this.prisma.otpSession.findFirst({
       where: {
@@ -84,7 +84,7 @@ export class AuthService {
       user = await this.prisma.user.create({
         data: {
           phoneNumber: dto.phone_number,
-          role: 'CLIENT',
+          role,
           isNewUser: true,
         },
         include: {
@@ -95,12 +95,19 @@ export class AuthService {
       // Первый вход, снимаем флаг нового пользователя
       user = await this.prisma.user.update({
         where: { id: user.id },
-        data: { isNewUser: false },
+        data: { isNewUser: false, role },
         include: {
           partnerProfile: true,
         },
       });
     } else {
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { role },
+        include: {
+          partnerProfile: true,
+        },
+      });
       user.isNewUser = false;
     }
 

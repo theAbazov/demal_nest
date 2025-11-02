@@ -1,11 +1,4 @@
-import {
-  Controller,
-  Get,
-  Patch,
-  Body,
-  Param,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, Patch, Body, Param, Query } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -27,7 +20,11 @@ export class AdminController {
   @Roles('ADMIN')
   @Get('partners')
   @ApiOperation({ summary: 'Получить список партнеров (только для админов)' })
-  @ApiQuery({ name: 'status', required: false, description: 'PENDING, VERIFIED, REJECTED' })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: 'PENDING, VERIFIED, REJECTED',
+  })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'Список партнеров' })

@@ -4,7 +4,8 @@ export const SwaggerExamples = {
   // Auth examples
   authVerifyOtp: {
     success: true,
-    auth_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1dWlkIiwicGhvbmVOdW1iZXIiOiIrOTk2NTU1MTIzNDU2Iiwicm9sZSI6IkNMSUVOVCIsImlhdCI6MTYxODAwMDAwMCwiZXhwIjoxNjE4NTk1MjAwfQ.example',
+    auth_token:
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1dWlkIiwicGhvbmVOdW1iZXIiOiIrOTk2NTU1MTIzNDU2Iiwicm9sZSI6IkNMSUVOVCIsImlhdCI6MTYxODAwMDAwMCwiZXhwIjoxNjE4NTk1MjAwfQ.example',
     is_new_user: false,
     user: {
       user_id: '550e8400-e29b-41d4-a716-446655440000',

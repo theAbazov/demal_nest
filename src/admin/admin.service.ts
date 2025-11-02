@@ -151,8 +151,12 @@ export class AdminService {
   async getPlatformStatistics() {
     // Общая статистика пользователей
     const totalUsers = await this.prisma.user.count();
-    const totalClients = await this.prisma.user.count({ where: { role: 'CLIENT' } });
-    const totalPartners = await this.prisma.user.count({ where: { role: 'PARTNER' } });
+    const totalClients = await this.prisma.user.count({
+      where: { role: 'CLIENT' },
+    });
+    const totalPartners = await this.prisma.user.count({
+      where: { role: 'PARTNER' },
+    });
 
     // Статистика партнеров
     const verifiedPartners = await this.prisma.partnerProfile.count({
@@ -164,12 +168,18 @@ export class AdminService {
 
     // Статистика туров
     const totalTours = await this.prisma.tour.count();
-    const activeTours = await this.prisma.tour.count({ where: { status: 'ACTIVE' } });
-    const completedTours = await this.prisma.tour.count({ where: { status: 'COMPLETED' } });
+    const activeTours = await this.prisma.tour.count({
+      where: { status: 'ACTIVE' },
+    });
+    const completedTours = await this.prisma.tour.count({
+      where: { status: 'COMPLETED' },
+    });
 
     // Статистика бронирований
     const totalBookings = await this.prisma.booking.count();
-    const paidBookings = await this.prisma.booking.count({ where: { status: 'PAID' } });
+    const paidBookings = await this.prisma.booking.count({
+      where: { status: 'PAID' },
+    });
     const totalRevenue = await this.prisma.booking.aggregate({
       where: { status: 'PAID' },
       _sum: { totalAmount: true },
@@ -205,7 +215,10 @@ export class AdminService {
         },
         reviews: {
           total: totalReviews,
-          average_rating: totalReviews > 0 ? Math.round(Number(avgRatingResult._avg.rating) * 10) / 10 : 0,
+          average_rating:
+            totalReviews > 0
+              ? Math.round(Number(avgRatingResult._avg.rating) * 10) / 10
+              : 0,
         },
       },
     };

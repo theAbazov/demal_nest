@@ -1,5 +1,18 @@
-import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import {
+  Controller,
+  Post,
+  Body,
+  HttpCode,
+  HttpStatus,
+  Headers,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBody,
+  ApiHeader,
+} from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
@@ -36,6 +49,16 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Верификация OTP кода и получение токена' })
   @ApiBody({ type: VerifyOtpDto })
+  @ApiHeader({
+    name: 'x-app-role',
+    description: 'Роль пользователя',
+    example: 'CLIENT',
+    required: true,
+    schema: {
+      type: 'string',
+      enum: ['CLIENT', 'PARTNER', 'ADMIN'],
+    },
+  })
   @ApiResponse({
     status: 200,
     description: 'Успешная авторизация',
@@ -56,7 +79,10 @@ export class AuthController {
     },
   })
   @ApiResponse({ status: 400, description: 'Неверный OTP код' })
-  async verifyOtp(@Body() dto: VerifyOtpDto) {
-    return await this.authService.verifyOtp(dto);
+  async verifyOtp(
+    @Body() dto: VerifyOtpDto,
+    @Headers('x-app-role') role: 'CLIENT' | 'PARTNER' | 'ADMIN',
+  ) {
+    return await this.authService.verifyOtp(dto, role);
   }
 }

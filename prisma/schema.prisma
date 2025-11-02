@@ -76,7 +76,7 @@ model Tour {
   title              String      @db.VarChar(255)
   mainImageUrl       String      @map("main_image_url") @db.VarChar(500)
   location           String      @db.VarChar(255)
-  tourType           String      @db.VarChar(255)
+  tourType           String      @map("tour_type") @db.VarChar(255)
   date               DateTime    @db.Date
   time               String      @db.VarChar(8)
   price              Decimal     @db.Decimal(10, 2)

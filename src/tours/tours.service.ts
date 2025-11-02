@@ -20,6 +20,9 @@ export class ToursService {
     });
 
     if (!partnerProfile || partnerProfile.verificationStatus !== 'VERIFIED') {
+      console.log(
+        '!partnerProfile || partnerProfile.verificationStatus !== VERIFIED',
+      );
       throw new ForbiddenException('Only verified partners can create tours');
     }
 
