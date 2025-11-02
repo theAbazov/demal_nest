@@ -1,0 +1,123 @@
+version: '3.8'
+
+services:
+  # NestJS Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: demal-nest-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Database (используется внешний PostgreSQL)
+      - DATABASE_URL=${DATABASE_URL}
+      
+      # JWT
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-7d}
+      
+      # MinIO (используется внешний MinIO)
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT}
+      - MINIO_PORT=${MINIO_PORT:-9000}
+      - MINIO_USE_SSL=${MINIO_USE_SSL:-false}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL}
+      
+      # Application
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=${PORT:-3000}
+    # Зависимости от внешних сервисов убраны, так как они запущены отдельно
+    # depends_on:
+    #   postgres:
+    #     condition: service_healthy
+    #   minio:
+    #     condition: service_healthy
+    # Добавляем host.docker.internal для доступа к сервисам на хосте (Windows/Mac)
+    # Для Linux может потребоваться использовать IP адрес хоста или network_mode: "host"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - demal-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/v1', (r) => {process.exit(r.statusCode >= 200 && r.statusCode < 500 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # PostgreSQL Database (закомментирован - используется внешний PostgreSQL)
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: demal-postgres
+  #   restart: unless-stopped
+  #   environment:
+  #     - POSTGRES_USER=demal_user
+  #     - POSTGRES_PASSWORD=demal_password
+  #     - POSTGRES_DB=demal_db
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+  #   networks:
+  #     - demal-network
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U demal_user -d demal_db"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+  # MinIO Object Storage (закомментирован - используется внешний MinIO)
+  # minio:
+  #   image: minio/minio:latest
+  #   container_name: demal-minio
+  #   restart: unless-stopped
+  #   command: server /data --console-address ":9001"
+  #   environment:
+  #     - MINIO_ROOT_USER=minioadmin
+  #     - MINIO_ROOT_PASSWORD=minioadmin
+  #   volumes:
+  #     - minio_data:/data
+  #   ports:
+  #     - "9000:9000"  # API
+  #     - "9001:9001"  # Console
+  #   networks:
+  #     - demal-network
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+  #     interval: 30s
+  #     timeout: 20s
+  #     retries: 3
+
+  # MinIO Client (закомментирован - используется внешний MinIO)
+  # minio-setup:
+  #   image: minio/mc:latest
+  #   container_name: demal-minio-setup
+  #   depends_on:
+  #     minio:
+  #       condition: service_healthy
+  #   entrypoint: >
+  #     /bin/sh -c "
+  #     sleep 5;
+  #     mc alias set local http://minio:9000 minioadmin minioadmin;
+  #     mc mb local/demal-storage || true;
+  #     mc anonymous set download local/demal-storage;
+  #     exit 0;
+  #     "
+  #   networks:
+  #     - demal-network
+
+networks:
+  demal-network:
+    driver: bridge
+
+# Volumes закомментированы, так как внешние сервисы не используют Docker volumes
+# volumes:
+#   postgres_data:
+#     driver: local
+#   minio_data:
+#     driver: local
