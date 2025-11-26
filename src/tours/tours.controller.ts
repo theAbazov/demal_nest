@@ -8,6 +8,7 @@ import {
   Param,
   Query,
   UseGuards,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -39,45 +40,7 @@ export class ToursController {
     return await this.toursService.findAll(filters);
   }
 
-  @Public()
-  @Get(':tour_id')
-  @ApiOperation({ summary: 'Получить детали тура' })
-  @ApiParam({ name: 'tour_id', description: 'ID тура' })
-  @ApiResponse({ status: 200, description: 'Детали тура' })
-  @ApiResponse({ status: 404, description: 'Тур не найден' })
-  async findOne(@Param('tour_id') tourId: string) {
-    return await this.toursService.findOne(tourId);
-  }
-
-  @Public()
-  @Get(':tour_id/reviews')
-  @ApiOperation({ summary: 'Получить отзывы тура' })
-  @ApiParam({ name: 'tour_id', description: 'ID тура' })
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiResponse({ status: 200, description: 'Список отзывов тура' })
-  @ApiResponse({ status: 404, description: 'Тур не найден' })
-  async getTourReviews(
-    @Param('tour_id') tourId: string,
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 20,
-  ) {
-    return await this.toursService.getTourReviews(tourId, page, limit);
-  }
-
-  // Partner endpoints
-  @Roles('PARTNER')
-  @ApiBearerAuth('JWT-auth')
-  @Post()
-  @ApiOperation({
-    summary: 'Создать новый тур (только для верифицированных партнеров)',
-  })
-  @ApiResponse({ status: 201, description: 'Тур создан' })
-  @ApiResponse({ status: 403, description: 'Недостаточно прав' })
-  async create(@CurrentUser('id') userId: string, @Body() dto: CreateTourDto) {
-    return await this.toursService.createTour(userId, dto);
-  }
-
+  // Partner endpoints - должны быть перед динамическими роутами
   @Roles('PARTNER')
   @ApiBearerAuth('JWT-auth')
   @Get('my')
@@ -95,6 +58,58 @@ export class ToursController {
 
   @Roles('PARTNER')
   @ApiBearerAuth('JWT-auth')
+  @Post()
+  @ApiOperation({
+    summary: 'Создать новый тур (только для верифицированных партнеров)',
+  })
+  @ApiResponse({ status: 201, description: 'Тур создан' })
+  @ApiResponse({ status: 403, description: 'Недостаточно прав' })
+  async create(@CurrentUser('id') userId: string, @Body() dto: CreateTourDto) {
+    return await this.toursService.createTour(userId, dto);
+  }
+
+  @Roles('PARTNER')
+  @ApiBearerAuth('JWT-auth')
+  @Get(':tour_id/bookings')
+  @ApiOperation({ summary: 'Получить бронирования тура' })
+  @ApiParam({ name: 'tour_id', description: 'ID тура' })
+  @ApiResponse({ status: 200, description: 'Список бронирований' })
+  @ApiResponse({ status: 403, description: 'Недостаточно прав' })
+  async getTourBookings(
+    @Param('tour_id', ParseUUIDPipe) tourId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return await this.toursService.getTourBookings(tourId, userId);
+  }
+
+  @Public()
+  @Get(':tour_id/reviews')
+  @ApiOperation({ summary: 'Получить отзывы тура' })
+  @ApiParam({ name: 'tour_id', description: 'ID тура' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'Список отзывов тура' })
+  @ApiResponse({ status: 404, description: 'Тур не найден' })
+  async getTourReviews(
+    @Param('tour_id', ParseUUIDPipe) tourId: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 20,
+  ) {
+    return await this.toursService.getTourReviews(tourId, page, limit);
+  }
+
+  @Public()
+  @Get(':tour_id')
+  @ApiOperation({ summary: 'Получить детали тура' })
+  @ApiParam({ name: 'tour_id', description: 'ID тура' })
+  @ApiResponse({ status: 200, description: 'Детали тура' })
+  @ApiResponse({ status: 404, description: 'Тур не найден' })
+  async findOne(@Param('tour_id', ParseUUIDPipe) tourId: string) {
+    return await this.toursService.findOne(tourId);
+  }
+
+  @Roles('PARTNER')
+  @ApiBearerAuth('JWT-auth')
   @Patch(':tour_id')
   @ApiOperation({ summary: 'Обновить тур' })
   @ApiParam({ name: 'tour_id', description: 'ID тура' })
@@ -102,7 +117,7 @@ export class ToursController {
   @ApiResponse({ status: 403, description: 'Недостаточно прав' })
   @ApiResponse({ status: 404, description: 'Тур не найден' })
   async update(
-    @Param('tour_id') tourId: string,
+    @Param('tour_id', ParseUUIDPipe) tourId: string,
     @CurrentUser('id') userId: string,
     @Body() dto: UpdateTourDto,
   ) {
@@ -118,23 +133,9 @@ export class ToursController {
   @ApiResponse({ status: 403, description: 'Недостаточно прав' })
   @ApiResponse({ status: 404, description: 'Тур не найден' })
   async delete(
-    @Param('tour_id') tourId: string,
+    @Param('tour_id', ParseUUIDPipe) tourId: string,
     @CurrentUser('id') userId: string,
   ) {
     return await this.toursService.deleteTour(tourId, userId);
-  }
-
-  @Roles('PARTNER')
-  @ApiBearerAuth('JWT-auth')
-  @Get(':tour_id/bookings')
-  @ApiOperation({ summary: 'Получить бронирования тура' })
-  @ApiParam({ name: 'tour_id', description: 'ID тура' })
-  @ApiResponse({ status: 200, description: 'Список бронирований' })
-  @ApiResponse({ status: 403, description: 'Недостаточно прав' })
-  async getTourBookings(
-    @Param('tour_id') tourId: string,
-    @CurrentUser('id') userId: string,
-  ) {
-    return await this.toursService.getTourBookings(tourId, userId);
   }
 }
