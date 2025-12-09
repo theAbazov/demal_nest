@@ -17,6 +17,7 @@ enum VerificationStatus {
   PENDING
   VERIFIED
   REJECTED
+  NOT_STARTED
 }
 
 enum TourStatus {
