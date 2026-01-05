@@ -8,6 +8,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtModuleOptions } from '@nestjs/jwt';
 
+import { SupabaseService } from '../common/services/supabase.service';
+
 @Module({
   imports: [
     PassportModule,
@@ -24,7 +26,7 @@ import { JwtModuleOptions } from '@nestjs/jwt';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, PrismaService],
+  providers: [AuthService, JwtStrategy, PrismaService, SupabaseService],
   exports: [AuthService],
 })
 export class AuthModule {}

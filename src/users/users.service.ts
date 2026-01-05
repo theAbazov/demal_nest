@@ -22,21 +22,21 @@ export class UsersService {
       success: true,
       user: {
         user_id: user.id,
-        phone_number: user.phoneNumber,
+        email: user.email,
         full_name: user.fullName,
         role: user.role,
         image_url: user.imageUrl,
         created_at: user.createdAt,
-        ...(user.partnerProfile && {
-          partner_profile: {
-            profile_id: user.partnerProfile.id,
-            company_name: user.partnerProfile.companyName,
-            description: user.partnerProfile.description,
-            documents_url: user.partnerProfile.documentsUrl,
-            verification_status: user.partnerProfile.verificationStatus,
-            card_number: user.partnerProfile.cardNumber,
-          },
-        }),
+        partner_profile: user.partnerProfile
+          ? {
+              profile_id: user.partnerProfile.id,
+              company_name: user.partnerProfile.companyName,
+              description: user.partnerProfile.description,
+              documents_url: user.partnerProfile.documentsUrl,
+              verification_status: user.partnerProfile.verificationStatus,
+              card_number: user.partnerProfile.cardNumber,
+            }
+          : null,
       },
     };
   }
@@ -68,6 +68,76 @@ export class UsersService {
         image_url: user.imageUrl,
         created_at: user.createdAt,
       },
+    };
+  }
+
+  async upgradeToPartner(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    if (user.role === 'PARTNER') {
+      throw new Error('User is already a PARTNER');
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: { role: 'PARTNER' },
+      include: {
+        partnerProfile: true,
+      },
+    });
+
+    return {
+      success: true,
+      user: {
+        user_id: updatedUser.id,
+        email: updatedUser.email,
+        full_name: updatedUser.fullName,
+        role: updatedUser.role,
+        image_url: updatedUser.imageUrl,
+        created_at: updatedUser.createdAt,
+      },
+    };
+  }
+
+  async deleteAccount(userId: string) {
+    // Проверяем существование пользователя
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        toursOrganized: true,
+        bookings: true,
+        reviews: true,
+        partnerProfile: true,
+      },
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    await this.prisma.$transaction(async (prisma) => {
+      // 1. Удаляем туры, организованные пользователем
+      // (это также удалит связанные bookings и reviews благодаря CASCADE)
+      if (user.toursOrganized.length > 0) {
+        await prisma.tour.deleteMany({
+          where: { organizerId: userId },
+        });
+      }
+
+      // 2. Удаляем пользователя
+      // (это автоматически удалит partnerProfile, bookings и reviews благодаря CASCADE)
+      await prisma.user.delete({
+        where: { id: userId },
+      });
+    });
+
+    return {
+      success: true,
+      message: 'Аккаунт и все связанные данные успешно удалены',
     };
   }
 }

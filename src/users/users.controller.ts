@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Body } from '@nestjs/common';
+import { Controller, Get, Patch, Body, Delete } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -30,6 +30,7 @@ export class UsersController {
           role: 'CLIENT',
           image_url: null,
           created_at: '2024-01-01T00:00:00Z',
+          partner_profile: null,
         },
       },
     },
@@ -62,5 +63,49 @@ export class UsersController {
     @Body() dto: UpdateProfileDto,
   ) {
     return await this.usersService.updateProfile(userId, dto);
+  }
+
+  @Patch('upgrade-role')
+  @ApiOperation({ summary: 'Обновить роль пользователя до PARTNER' })
+  @ApiResponse({
+    status: 200,
+    description: 'Роль успешно обновлена',
+    schema: {
+      example: {
+        success: true,
+        user: {
+          user_id: 'uuid',
+          email: 'user@example.com',
+          full_name: 'Иван Петров',
+          role: 'PARTNER',
+          image_url: 'https://example.com/avatar.jpg',
+          created_at: '2024-01-01T00:00:00Z',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Пользователь уже является партнером',
+  })
+  async upgradeToPartner(@CurrentUser('id') userId: string) {
+    return await this.usersService.upgradeToPartner(userId);
+  }
+
+  @Delete('account')
+  @ApiOperation({ summary: 'Удалить аккаунт пользователя и все связанные данные' })
+  @ApiResponse({
+    status: 200,
+    description: 'Аккаунт успешно удален',
+    schema: {
+      example: {
+        success: true,
+        message: 'Аккаунт и все связанные данные успешно удалены',
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Пользователь не найден' })
+  async deleteAccount(@CurrentUser('id') userId: string) {
+    return await this.usersService.deleteAccount(userId);
   }
 }

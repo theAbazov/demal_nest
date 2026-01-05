@@ -1,10 +1,19 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { MinioService } from '../minio/minio.service';
+import { SupabaseService } from '../common/services/supabase.service';
+import { ConfigService } from '@nestjs/config';
 import { FileType } from './dto/upload-files.dto';
 
 @Injectable()
 export class UploadService {
-  constructor(private minioService: MinioService) {}
+  private bucketName: string;
+
+  constructor(
+    private supabaseService: SupabaseService,
+    private configService: ConfigService,
+  ) {
+    this.bucketName =
+      this.configService.get<string>('SUPABASE_BUCKET_NAME') || 'uploads';
+  }
 
   /**
    * Загрузка одного файла
@@ -28,16 +37,31 @@ export class UploadService {
     const folder = customFolder || this.getFolderForType(type);
 
     try {
-      // Загружаем файл в MinIO
-      const fileData = {
-        originalname: file.originalname,
-        mimetype: file.mimetype,
-        buffer: file.buffer,
-      };
+      const fileName = `${folder}/${Date.now()}-${file.originalname}`;
+      const supabase = this.supabaseService.getClient();
 
-      const url = await this.minioService.uploadFile(fileData, folder);
+      const { data, error } = await supabase.storage
+        .from(this.bucketName)
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false,
+        });
 
-      return { url };
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      // Получаем публичный URL
+      const { data: publicUrlData } = supabase.storage
+        .from(this.bucketName)
+        .getPublicUrl(fileName);
+
+      console.log('Bucket:', this.bucketName);
+      console.log('FileName:', fileName);
+      console.log('Generated URL:', publicUrlData.publicUrl);
+      console.log('Supabase URL Config:', this.configService.get('SUPABASE_URL'));
+
+      return { url: publicUrlData.publicUrl };
     } catch (error) {
       throw new BadRequestException(`Failed to upload file: ${error.message}`);
     }
@@ -66,14 +90,27 @@ export class UploadService {
 
     try {
       // Загружаем все файлы параллельно
-      const uploadPromises = files.map((file) => {
-        const fileData = {
-          originalname: file.originalname,
-          mimetype: file.mimetype,
-          buffer: file.buffer,
-        };
+      const supabase = this.supabaseService.getClient();
+      
+      const uploadPromises = files.map(async (file) => {
+        const fileName = `${folder}/${Date.now()}-${file.originalname}`;
+        
+        const { error } = await supabase.storage
+          .from(this.bucketName)
+          .upload(fileName, file.buffer, {
+            contentType: file.mimetype,
+            upsert: false,
+          });
 
-        return this.minioService.uploadFile(fileData, folder);
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        const { data: publicUrlData } = supabase.storage
+          .from(this.bucketName)
+          .getPublicUrl(fileName);
+
+        return publicUrlData.publicUrl;
       });
 
       const urls = await Promise.all(uploadPromises);
@@ -102,6 +139,7 @@ export class UploadService {
 
     try {
       const result: Record<string, string> = {};
+      const supabase = this.supabaseService.getClient();
 
       // Загружаем файлы для каждого ключа
       for (const [key, fileArray] of Object.entries(files)) {
@@ -116,15 +154,24 @@ export class UploadService {
         this.validateFileType(file, type);
         this.validateFileSize(file);
 
-        // Загружаем файл
-        const fileData = {
-          originalname: file.originalname,
-          mimetype: file.mimetype,
-          buffer: file.buffer,
-        };
+        const fileName = `${folder}/${Date.now()}-${file.originalname}`;
 
-        const url = await this.minioService.uploadFile(fileData, folder);
-        result[key] = url;
+        const { error } = await supabase.storage
+          .from(this.bucketName)
+          .upload(fileName, file.buffer, {
+            contentType: file.mimetype,
+            upsert: false,
+          });
+
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        const { data: publicUrlData } = supabase.storage
+          .from(this.bucketName)
+          .getPublicUrl(fileName);
+          
+        result[key] = publicUrlData.publicUrl;
       }
 
       return result;
