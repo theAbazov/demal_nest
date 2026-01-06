@@ -23,10 +23,32 @@ import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { Public } from '../common/decorators/public.decorator';
 import { AuthGuard } from '@nestjs/passport';
 
+import { CreateAdminDto } from './dto/create-admin.dto';
+
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @Public()
+  @Post('register-admin')
+  @ApiOperation({ summary: 'Регистрация/назначение Админа (по секретному ключу)' })
+  @ApiBody({ type: CreateAdminDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Админ успешно зарегистрирован/обновлен',
+    schema: {
+      example: {
+        success: true,
+        message: 'Admin registered successfully',
+        auth_token: 'eyJhbGciOiJIUzI1NiIsIn...',
+        user: { role: 'ADMIN' },
+      },
+    },
+  })
+  async registerAdmin(@Body() dto: CreateAdminDto) {
+    return await this.authService.registerAdmin(dto);
+  }
 
   @Public()
   @Post('send-otp')

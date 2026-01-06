@@ -35,11 +35,7 @@ export class PartnersService {
         },
       });
 
-      // Обновляем роль пользователя на PARTNER
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: { role: 'PARTNER' },
-      });
+
     }
 
     return {

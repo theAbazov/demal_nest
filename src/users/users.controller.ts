@@ -65,32 +65,7 @@ export class UsersController {
     return await this.usersService.updateProfile(userId, dto);
   }
 
-  @Patch('upgrade-role')
-  @ApiOperation({ summary: 'Обновить роль пользователя до PARTNER' })
-  @ApiResponse({
-    status: 200,
-    description: 'Роль успешно обновлена',
-    schema: {
-      example: {
-        success: true,
-        user: {
-          user_id: 'uuid',
-          email: 'user@example.com',
-          full_name: 'Иван Петров',
-          role: 'PARTNER',
-          image_url: 'https://example.com/avatar.jpg',
-          created_at: '2024-01-01T00:00:00Z',
-        },
-      },
-    },
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Пользователь уже является партнером',
-  })
-  async upgradeToPartner(@CurrentUser('id') userId: string) {
-    return await this.usersService.upgradeToPartner(userId);
-  }
+
 
   @Delete('account')
   @ApiOperation({ summary: 'Удалить аккаунт пользователя и все связанные данные' })

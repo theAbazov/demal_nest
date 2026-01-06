@@ -71,37 +71,7 @@ export class UsersService {
     };
   }
 
-  async upgradeToPartner(userId: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
 
-    if (!user) {
-      throw new Error('User not found');
-    }
-
-    if (user.role === 'PARTNER') {
-      throw new Error('User is already a PARTNER');
-    }
-
-    const updatedUser = await this.prisma.user.update({
-      where: { id: userId },
-      data: { role: 'PARTNER' },
-      include: {
-        partnerProfile: true,
-      },
-    });
-
-    return {
-      success: true,
-      user: {
-        user_id: updatedUser.id,
-        email: updatedUser.email,
-        full_name: updatedUser.fullName,
-        role: updatedUser.role,
-        image_url: updatedUser.imageUrl,
-        created_at: updatedUser.createdAt,
-      },
-    };
-  }
 
   async deleteAccount(userId: string) {
     // Проверяем существование пользователя

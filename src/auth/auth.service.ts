@@ -198,4 +198,55 @@ export class AuthService {
       auth_token: authToken,
     };
   }
+
+  async registerAdmin(dto: any) {
+    // 1. Проверяем секретный ключ
+    const adminSecret = this.configService.get('ADMIN_REGISTRATION_SECRET');
+    
+    if (dto.secret_key !== adminSecret) {
+      throw new BadRequestException('Invalid secret key');
+    }
+
+    // 2. Ищем или создаем пользователя
+    let user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (!user) {
+      // Если пользователя нет, создаем сразу админа
+      user = await this.prisma.user.create({
+        data: {
+          email: dto.email,
+          role: 'ADMIN',
+        },
+      });
+    } else {
+      // Если есть, обновляем роль
+      if (user.role !== 'ADMIN') {
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: { role: 'ADMIN' },
+        });
+      }
+    }
+
+    // 3. Выдаем токен
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    };
+
+    const authToken = this.jwtService.sign(payload);
+
+    return {
+      success: true,
+      message: 'Admin registered successfully',
+      auth_token: authToken,
+      user: {
+        email: user.email,
+        role: user.role,
+      },
+    };
+  }
 }
