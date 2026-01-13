@@ -54,6 +54,14 @@ export class UsersController {
           role: 'CLIENT',
           image_url: 'https://example.com/avatar.jpg',
           created_at: '2024-01-01T00:00:00Z',
+          partner_profile: {
+            profile_id: 'uuid',
+            company_name: 'My Company',
+            description: 'Мы компания...',
+            documents_url: '...',
+            verification_status: 'NOTE_VERIFIED',
+            card_number: null
+          },
         },
       },
     },

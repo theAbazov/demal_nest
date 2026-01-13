@@ -182,6 +182,39 @@ export class UploadService {
     }
   }
 
+  /**
+   * Удаление файла по URL
+   */
+  async deleteFile(fileUrl: string): Promise<void> {
+    if (!fileUrl) {
+      throw new BadRequestException('No file URL provided');
+    }
+
+    // URL формат: http://domain/.../bucketName/folder/filename
+    // Мы ищем bucketName в URL и берем все что после него
+    const bucketIndex = fileUrl.indexOf(this.bucketName);
+    
+    if (bucketIndex === -1) {
+       throw new BadRequestException('Invalid file URL or bucket mismatch');
+    }
+
+    // +1 для слэша
+    const filePath = fileUrl.substring(bucketIndex + this.bucketName.length + 1);
+
+    if (!filePath) {
+      throw new BadRequestException('Could not parse file path from URL');
+    }
+
+    const supabase = this.supabaseService.getClient();
+    const { error } = await supabase.storage
+      .from(this.bucketName)
+      .remove([filePath]);
+
+    if (error) {
+      throw new BadRequestException(`Failed to delete file: ${error.message}`);
+    }
+  }
+
   private validateFileType(file: Express.Multer.File, type: FileType) {
     if (type === FileType.IMAGE) {
       const allowedMimes = [

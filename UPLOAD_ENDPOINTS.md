@@ -3,6 +3,7 @@
 ## Обзор
 
 Система поддерживает три способа загрузки файлов:
+
 1. **Одиночная загрузка** - один файл, один URL
 2. **Множественная загрузка** - список файлов, список URLs
 3. **Загрузка с ключами** - кастомные ключи, объект {ключ: URL}
@@ -16,12 +17,15 @@
 **Endpoint:** `POST /api/v1/upload/single`
 
 **Query параметры:**
+
 - `type` (обязательный): `image` или `document`
 
 **Body (multipart/form-data):**
+
 - `file`: файл для загрузки
 
 **Пример запроса (cURL):**
+
 ```bash
 curl -X POST \
   'http://localhost:3000/api/v1/upload/single?type=image' \
@@ -30,6 +34,7 @@ curl -X POST \
 ```
 
 **Пример ответа:**
+
 ```json
 {
   "success": true,
@@ -40,17 +45,21 @@ curl -X POST \
 ```
 
 **Использование в JavaScript:**
+
 ```javascript
 const formData = new FormData();
 formData.append('file', fileInput.files[0]);
 
-const response = await fetch('http://localhost:3000/api/v1/upload/single?type=image', {
-  method: 'POST',
-  headers: {
-    'Authorization': `Bearer ${token}`
+const response = await fetch(
+  'http://localhost:3000/api/v1/upload/single?type=image',
+  {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
   },
-  body: formData
-});
+);
 
 const result = await response.json();
 console.log(result.data.url); // URL загруженного файла
@@ -63,12 +72,15 @@ console.log(result.data.url); // URL загруженного файла
 **Endpoint:** `POST /api/v1/upload/multiple`
 
 **Query параметры:**
+
 - `type` (обязательный): `image` или `document`
 
 **Body (multipart/form-data):**
+
 - `files`: массив файлов (максимум 10)
 
 **Пример запроса (cURL):**
+
 ```bash
 curl -X POST \
   'http://localhost:3000/api/v1/upload/multiple?type=image' \
@@ -79,6 +91,7 @@ curl -X POST \
 ```
 
 **Пример ответа:**
+
 ```json
 {
   "success": true,
@@ -97,6 +110,7 @@ curl -X POST \
 ```
 
 **Использование в JavaScript:**
+
 ```javascript
 const formData = new FormData();
 // Добавляем несколько файлов с одним именем поля "files"
@@ -104,13 +118,16 @@ for (let i = 0; i < fileInput.files.length; i++) {
   formData.append('files', fileInput.files[i]);
 }
 
-const response = await fetch('http://localhost:3000/api/v1/upload/multiple?type=image', {
-  method: 'POST',
-  headers: {
-    'Authorization': `Bearer ${token}`
+const response = await fetch(
+  'http://localhost:3000/api/v1/upload/multiple?type=image',
+  {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
   },
-  body: formData
-});
+);
 
 const result = await response.json();
 // result.data - массив объектов с URL
@@ -126,12 +143,15 @@ result.data.forEach((item, index) => {
 **Endpoint:** `POST /api/v1/upload/with-keys`
 
 **Query параметры:**
+
 - `type` (обязательный): `image` или `document`
 
 **Body (multipart/form-data):**
+
 - Любые поля с файлами, где имя поля - это ключ, который вы хотите получить в ответе
 
 **Пример запроса (cURL):**
+
 ```bash
 curl -X POST \
   'http://localhost:3000/api/v1/upload/with-keys?type=image' \
@@ -143,6 +163,7 @@ curl -X POST \
 ```
 
 **Пример ответа:**
+
 ```json
 {
   "success": true,
@@ -156,19 +177,23 @@ curl -X POST \
 ```
 
 **Использование в JavaScript:**
+
 ```javascript
 const formData = new FormData();
 formData.append('mainImage', mainImageFile);
 formData.append('galleryImage1', galleryImage1File);
 formData.append('galleryImage2', galleryImage2File);
 
-const response = await fetch('http://localhost:3000/api/v1/upload/with-keys?type=image', {
-  method: 'POST',
-  headers: {
-    'Authorization': `Bearer ${token}`
+const response = await fetch(
+  'http://localhost:3000/api/v1/upload/with-keys?type=image',
+  {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
   },
-  body: formData
-});
+);
 
 const result = await response.json();
 // result.data - объект с ключами
@@ -192,8 +217,8 @@ formData.append('galleryImage2', galleryImage2File);
 
 const uploadResponse = await fetch('/api/v1/upload/with-keys?type=image', {
   method: 'POST',
-  headers: { 'Authorization': `Bearer ${token}` },
-  body: formData
+  headers: { Authorization: `Bearer ${token}` },
+  body: formData,
 });
 
 const uploadResult = await uploadResponse.json();
@@ -203,20 +228,17 @@ const urls = uploadResult.data;
 const tourData = {
   title: 'Мой тур',
   mainImageUrl: urls.mainImage,
-  imageGalleryUrls: [
-    urls.galleryImage1,
-    urls.galleryImage2
-  ],
+  imageGalleryUrls: [urls.galleryImage1, urls.galleryImage2],
   // ... остальные поля
 };
 
 const tourResponse = await fetch('/api/v1/tours', {
   method: 'POST',
   headers: {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json'
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
   },
-  body: JSON.stringify(tourData)
+  body: JSON.stringify(tourData),
 });
 ```
 
@@ -231,12 +253,12 @@ for (let file of galleryFiles) {
 
 const response = await fetch('/api/v1/upload/multiple?type=image', {
   method: 'POST',
-  headers: { 'Authorization': `Bearer ${token}` },
-  body: formData
+  headers: { Authorization: `Bearer ${token}` },
+  body: formData,
 });
 
 const result = await response.json();
-const galleryUrls = result.data.map(item => item.url);
+const galleryUrls = result.data.map((item) => item.url);
 
 // Используем URLs для обновления тура
 await updateTour(tourId, { imageGalleryUrls: galleryUrls });
@@ -252,12 +274,67 @@ formData.append('certificate', certificateFile);
 
 const response = await fetch('/api/v1/upload/with-keys?type=document', {
   method: 'POST',
-  headers: { 'Authorization': `Bearer ${token}` },
-  body: formData
+  headers: { Authorization: `Bearer ${token}` },
+  body: formData,
 });
 
 const result = await response.json();
 const documentsUrl = JSON.stringify(result.data); // Сохраняем как JSON строку
+```
+
+````
+
+---
+
+### 4. Удаление файла
+
+**Endpoint:** `DELETE /api/v1/upload`
+
+**Body (JSON):**
+```json
+{
+  "url": "http://localhost:9000/demal-storage/images/1234567890-photo.jpg"
+}
+````
+
+**Пример запроса (cURL):**
+
+```bash
+curl -X DELETE \
+  'http://localhost:3000/api/v1/upload' \
+  -H 'Authorization: Bearer YOUR_JWT_TOKEN' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "url": "http://localhost:9000/demal-storage/images/1234567890-photo.jpg"
+  }'
+```
+
+**Пример ответа:**
+
+```json
+{
+  "success": true
+}
+```
+
+**Использование в JavaScript:**
+
+```javascript
+const response = await fetch('http://localhost:3000/api/v1/upload', {
+  method: 'DELETE',
+  headers: {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    url: fileUrlToDelete,
+  }),
+});
+
+const result = await response.json();
+if (result.success) {
+  console.log('File deleted successfully');
+}
 ```
 
 ---
@@ -265,10 +342,12 @@ const documentsUrl = JSON.stringify(result.data); // Сохраняем как J
 ## Валидация файлов
 
 ### Для изображений (type=image):
+
 - Разрешенные форматы: JPEG, JPG, PNG, WebP, GIF
 - Максимальный размер: 10MB
 
 ### Для документов (type=document):
+
 - Разрешенные форматы: PDF, DOC, DOCX
 - Максимальный размер: 10MB
 
@@ -277,12 +356,14 @@ const documentsUrl = JSON.stringify(result.data); // Сохраняем как J
 ## Ошибки
 
 ### 400 Bad Request
+
 - `No file provided` - файл не был передан
 - `Invalid file type` - недопустимый тип файла
 - `File size exceeds the maximum allowed size of 10MB` - файл слишком большой
 - `Type must be either "image" or "document"` - неверный query параметр type
 
 ### 401 Unauthorized
+
 - Отсутствует или неверный JWT токен
 
 ---
