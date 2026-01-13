@@ -46,7 +46,6 @@ export class UsersService {
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {
-    // 1. Fetch user to check role
     const currentUser = await this.prisma.user.findUnique({
       where: { id: userId },
       include: { partnerProfile: true },
@@ -61,10 +60,7 @@ export class UsersService {
     if (dto.image_url !== undefined) updateData.imageUrl = dto.image_url;
     if (dto.phone_number !== undefined) updateData.phoneNumber = dto.phone_number;
 
-    // Handle nested partner profile update
     if (currentUser.role === 'PARTNER' && dto.description !== undefined) {
-      // We use upsert to ensure it handles cases where profile might be missing (though it shouldn't for a valid partner)
-      // or just update if we are sure. To be safe given the schema:
       if (currentUser.partnerProfile) {
         updateData.partnerProfile = {
           update: {
@@ -82,7 +78,6 @@ export class UsersService {
       },
     });
 
-    // Formatted response as requested
     const response: any = {
       success: true,
       user: {
@@ -113,7 +108,6 @@ export class UsersService {
 
 
   async deleteAccount(userId: string) {
-    // Проверяем существование пользователя
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
@@ -129,16 +123,12 @@ export class UsersService {
     }
 
     await this.prisma.$transaction(async (prisma) => {
-      // 1. Удаляем туры, организованные пользователем
-      // (это также удалит связанные bookings и reviews благодаря CASCADE)
       if (user.toursOrganized.length > 0) {
         await prisma.tour.deleteMany({
           where: { organizerId: userId },
         });
       }
 
-      // 2. Удаляем пользователя
-      // (это автоматически удалит partnerProfile, bookings и reviews благодаря CASCADE)
       await prisma.user.delete({
         where: { id: userId },
       });
