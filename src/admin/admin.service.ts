@@ -72,6 +72,15 @@ export class AdminService {
       data: {
         verificationStatus: dto.action,
         verificationComment: dto.comment,
+        ...(dto.action === 'VERIFIED'
+          ? {
+              user: {
+                update: {
+                  role: 'PARTNER',
+                },
+              },
+            }
+          : {}),
       },
       include: {
         user: {

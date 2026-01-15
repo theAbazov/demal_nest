@@ -1,15 +1,12 @@
-import { IsNotEmpty, IsString, Matches } from 'class-validator';
+import { IsEmail, IsNotEmpty } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class SendOtpDto {
   @ApiProperty({
-    description: 'Номер телефона в формате +996XXXXXXXXX',
-    example: '+996555123456',
+    description: 'Email address',
+    example: 'user@example.com',
   })
   @IsNotEmpty()
-  @IsString()
-  @Matches(/^\+996\d{9}$/, {
-    message: 'Phone number must be in format +996XXXXXXXXX',
-  })
-  phone_number: string;
+  @IsEmail()
+  email: string;
 }

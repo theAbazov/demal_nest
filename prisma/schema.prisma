@@ -17,6 +17,7 @@ enum VerificationStatus {
   PENDING
   VERIFIED
   REJECTED
+  NOT_STARTED
 }
 
 enum TourStatus {
@@ -32,6 +33,7 @@ enum BookingStatus {
 }
 
 enum OtpChannel {
+  EMAIL
   SMS
   WHATSAPP
   TELEGRAM
@@ -39,11 +41,13 @@ enum OtpChannel {
 
 model User {
   id           String   @id @default(uuid()) @map("user_id")
-  phoneNumber  String   @unique @map("phone_number") @db.VarChar(20)
+  email        String   @unique @db.VarChar(255)
+  phoneNumber  String?  @map("phone_number") @db.VarChar(20)
   fullName     String?  @map("full_name") @db.VarChar(255)
   role         Role     @default(CLIENT)
+  googleId     String?  @unique @map("google_id") @db.VarChar(255)
+  appleId      String?  @unique @map("apple_id") @db.VarChar(255)
   createdAt    DateTime @default(now()) @map("created_at")
-  isNewUser    Boolean  @default(true) @map("is_new_user")
   imageUrl     String?  @map("image_url") @db.VarChar(500)
 
   partnerProfile PartnerProfile?
@@ -136,7 +140,7 @@ model Review {
 
 model OtpSession {
   id          String     @id @default(uuid()) @map("session_id")
-  phoneNumber String     @map("phone_number") @db.VarChar(20)
+  email       String     @map("email") @db.VarChar(255)
   otpCode     String     @map("otp_code") @db.VarChar(6)
   channel     OtpChannel
   attempts    Int        @default(0)

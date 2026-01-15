@@ -5,6 +5,12 @@ export enum UserRole {
   ADMIN = 'ADMIN',
 }
 
+export enum VerificationStatus {
+  PENDING = 'PENDING',
+  VERIFIED = 'VERIFIED',
+  REJECTED = 'REJECTED',
+  NOT_STARTED = 'NOT_STARTED',}
+
 export enum BookingStatus {
   PENDING = 'PENDING',
   CONFIRMED = 'CONFIRMED',

@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Body } from '@nestjs/common';
+import { Controller, Get, Patch, Body, Delete } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -30,6 +30,7 @@ export class UsersController {
           role: 'CLIENT',
           image_url: null,
           created_at: '2024-01-01T00:00:00Z',
+          partner_profile: null,
         },
       },
     },
@@ -53,6 +54,14 @@ export class UsersController {
           role: 'CLIENT',
           image_url: 'https://example.com/avatar.jpg',
           created_at: '2024-01-01T00:00:00Z',
+          partner_profile: {
+            profile_id: 'uuid',
+            company_name: 'My Company',
+            description: 'Мы компания...',
+            documents_url: '...',
+            verification_status: 'NOTE_VERIFIED',
+            card_number: null
+          },
         },
       },
     },
@@ -62,5 +71,24 @@ export class UsersController {
     @Body() dto: UpdateProfileDto,
   ) {
     return await this.usersService.updateProfile(userId, dto);
+  }
+
+
+
+  @Delete('account')
+  @ApiOperation({ summary: 'Удалить аккаунт пользователя и все связанные данные' })
+  @ApiResponse({
+    status: 200,
+    description: 'Аккаунт успешно удален',
+    schema: {
+      example: {
+        success: true,
+        message: 'Аккаунт и все связанные данные успешно удалены',
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Пользователь не найден' })
+  async deleteAccount(@CurrentUser('id') userId: string) {
+    return await this.usersService.deleteAccount(userId);
   }
 }

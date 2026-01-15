@@ -4,7 +4,7 @@ import { CreatePartnerProfileDto } from './dto/create-partner-profile.dto';
 
 @Injectable()
 export class PartnersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async createOrUpdateProfile(userId: string, dto: CreatePartnerProfileDto) {
     // Проверяем существование профиля
@@ -35,11 +35,7 @@ export class PartnersService {
         },
       });
 
-      // Обновляем роль пользователя на PARTNER
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: { role: 'PARTNER' },
-      });
+
     }
 
     return {
@@ -62,7 +58,13 @@ export class PartnersService {
     });
 
     if (!profile) {
-      throw new ForbiddenException('Partner profile not found');
+      return {
+        success: true,
+        verification_status: 'NOT_STARTED',
+        admin_comments: null,
+        submitted_at: null,
+        reviewed_at: null,
+      };
     }
 
     return {

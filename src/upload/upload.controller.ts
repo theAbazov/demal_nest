@@ -6,6 +6,8 @@ import {
   UseInterceptors,
   Query,
   BadRequestException,
+  Delete,
+  Body,
 } from '@nestjs/common';
 import {
   FileInterceptor,
@@ -252,6 +254,34 @@ export class UploadController {
     return {
       success: true,
       data: result,
+    };
+  }
+
+  @Roles('CLIENT', 'PARTNER', 'ADMIN')
+  @Delete()
+  @ApiOperation({
+    summary: 'Удалить файл',
+    description: 'Удаляет файл по его URL. Операция необратима.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        url: {
+          type: 'string',
+          description: 'Полный URL файла',
+        },
+      },
+      required: ['url'],
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Файл успешно удален' })
+  @ApiResponse({ status: 400, description: 'Ошибка удаления' })
+  @ApiResponse({ status: 401, description: 'Не авторизован' })
+  async deleteFile(@Body('url') url: string) {
+    await this.uploadService.deleteFile(url);
+    return {
+      success: true,
     };
   }
 

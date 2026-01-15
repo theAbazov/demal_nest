@@ -27,7 +27,7 @@ export class PartnersController {
     return await this.partnersService.createOrUpdateProfile(userId, dto);
   }
 
-  @Roles('PARTNER')
+  @Roles('PARTNER', 'CLIENT')
   @Get('verification-status')
   @ApiOperation({ summary: 'Получить статус верификации партнера' })
   @ApiResponse({ status: 200, description: 'Статус верификации' })

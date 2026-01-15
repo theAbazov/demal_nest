@@ -21,4 +21,23 @@ export class UpdateProfileDto {
   @IsString()
   @MaxLength(500)
   image_url?: string;
+
+  @ApiProperty({
+    description: 'Номер телефона пользователя',
+    example: '+996555123456',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  phone_number?: string;
+
+  @ApiProperty({
+    description: 'Описание (для партнеров)',
+    example: 'Мы компания, организующая лучшие туры...',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  description?: string;
 }
