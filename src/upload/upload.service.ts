@@ -35,7 +35,7 @@ export class UploadService {
     try {
       const fileName = `${folder}/${Date.now()}-${file.originalname}`;
       
-      await this.minioService.client.putObject(
+    const result=  await this.minioService.client.putObject(
         this.minioService.bucket,
         fileName,
         file.buffer,
@@ -43,8 +43,7 @@ export class UploadService {
         { 'Content-Type': file.mimetype },
       );
 
-      // Генерируем публичный URL вручную, так как presignedUrl имеет срок действия,
-      // а нам нужен постоянный доступ (при условии, что бакет публичный)
+     
       const endpoint = this.configService.get<string>('MINIO_ENDPOINT') || '109.73.202.55';
       const port = this.configService.get<string>('MINIO_PORT') || '9000';
       const useSSL = this.configService.get<string>('MINIO_USE_SSL') === 'true';
