@@ -16,8 +16,8 @@ export class MinioService implements OnModuleInit {
       endPoint: this.configService.get<string>('MINIO_ENDPOINT') || '109.73.202.55',
       port: parseInt(this.configService.get<string>('MINIO_PORT') || '9000'),
       useSSL: this.configService.get<string>('MINIO_USE_SSL') === 'true',
-      accessKey: this.configService.get<string>('MINIO_ACCESS_KEY'),
-      secretKey: this.configService.get<string>('MINIO_SECRET_KEY'),
+      accessKey: this.configService.get<string>('MINIO_ACCESS_KEY') || 'your_access_key01',
+      secretKey: this.configService.get<string>('MINIO_SECRET_KEY') || 'your_secret_key01',
     });
   }
 

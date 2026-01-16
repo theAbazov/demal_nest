@@ -45,24 +45,25 @@ async function bootstrap() {
     } else {
         console.log(`Bucket '${bucketName}' does NOT exist.`);
         console.log(`Creating bucket '${bucketName}'...`);
-        await minioClient.makeBucket(bucketName, 'us-east-1'); // Region is required but often ignored by MinIO standalone
+        await minioClient.makeBucket(bucketName, 'us-east-1');
         console.log(`Bucket '${bucketName}' created.`);
-        
-        // Make it public (read-only)
-        const policy = {
-            Version: '2012-10-17',
-            Statement: [
-                {
-                    Effect: 'Allow',
-                    Principal: { AWS: ['*'] },
-                    Action: ['s3:GetObject'],
-                    Resource: [`arn:aws:s3:::${bucketName}/*`],
-                },
-            ],
-        };
-        await minioClient.setBucketPolicy(bucketName, JSON.stringify(policy));
-        console.log(`Bucket '${bucketName}' policy set to public read.`);
     }
+
+    // Make it public (read-only) - ALWAYS apply this to ensure public access
+    console.log(`Setting public policy for '${bucketName}'...`);
+    const policy = {
+        Version: '2012-10-17',
+        Statement: [
+            {
+                Effect: 'Allow',
+                Principal: { AWS: ['*'] },
+                Action: ['s3:GetObject'],
+                Resource: [`arn:aws:s3:::${bucketName}/*`],
+            },
+        ],
+    };
+    await minioClient.setBucketPolicy(bucketName, JSON.stringify(policy));
+    console.log(`Bucket '${bucketName}' policy set to public read.`);
 
   } catch (err) {
     console.error('Failed to connect or list buckets:', err);

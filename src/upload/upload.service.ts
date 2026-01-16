@@ -23,17 +23,14 @@ export class UploadService {
       throw new BadRequestException('No file provided');
     }
 
-    // Валидация типа файла
     this.validateFileType(file, type);
 
-    // Валидация размера
     this.validateFileSize(file);
 
-    // Определяем папку для загрузки
     const folder = customFolder || this.getFolderForType(type);
 
     try {
-      const fileName = `${folder}/${Date.now()}-${file.originalname}`;
+      const fileName = `${folder}/${Date.now()}-${this.sanitizeFileName(file.originalname)}`;
       
     const result=  await this.minioService.client.putObject(
         this.minioService.bucket,
@@ -61,9 +58,7 @@ export class UploadService {
     }
   }
 
-  /**
-   * Загрузка нескольких файлов списком
-   */
+ 
   async uploadMultipleFiles(
     files: Express.Multer.File[],
     type: FileType,
@@ -91,7 +86,7 @@ export class UploadService {
       const baseUrl = `${protocol}://${endpoint}:${port}/${this.minioService.bucket}`;
 
       const uploadPromises = files.map(async (file) => {
-        const fileName = `${folder}/${Date.now()}-${file.originalname}`;
+        const fileName = `${folder}/${Date.now()}-${this.sanitizeFileName(file.originalname)}`;
         
         await this.minioService.client.putObject(
           this.minioService.bucket,
@@ -150,7 +145,7 @@ export class UploadService {
         this.validateFileType(file, type);
         this.validateFileSize(file);
 
-        const fileName = `${folder}/${Date.now()}-${file.originalname}`;
+        const fileName = `${folder}/${Date.now()}-${this.sanitizeFileName(file.originalname)}`;
 
         await this.minioService.client.putObject(
           this.minioService.bucket,
@@ -231,13 +226,18 @@ export class UploadService {
   }
 
   private validateFileSize(file: Express.Multer.File) {
-    // Максимальный размер: 10MB
     const maxSize = 10 * 1024 * 1024;
     if (file.size > maxSize) {
       throw new BadRequestException(
         'File size exceeds the maximum allowed size of 10MB.',
       );
     }
+  }
+
+
+
+  private sanitizeFileName(originalName: string): string {
+    return originalName.replace(/\s+/g, '-').replace(/[()]/g, '');
   }
 
   private getFolderForType(type: FileType): string {
