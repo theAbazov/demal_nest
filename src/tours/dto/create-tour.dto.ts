@@ -13,7 +13,7 @@ import {
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
-class MeetingPointDto {
+export class MeetingPointDto {
   @ApiProperty({ example: 'Бишкек, пр. Чуй, 145' })
   @IsString()
   address: string;
