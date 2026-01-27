@@ -6,7 +6,7 @@ import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { GoogleLoginDto } from './dto/google-login.dto';
 import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../common/services/supabase.service';
-import axios from 'axios';
+
 
 @Injectable()
 export class AuthService {
@@ -165,22 +165,21 @@ export class AuthService {
     };
   }
 
-  async validateGoogleToken(accessToken: string) {
-    try {
-      const response = await axios.get(
-        `https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${accessToken}`,
-      );
-      return response.data;
-    } catch (error) {
+  async validateSupabaseToken(accessToken: string) {
+    const { data, error } = await this.supabaseService.getClient().auth.getUser(accessToken);
+
+    if (error || !data.user) {
       return null;
     }
+
+    return data.user;
   }
 
   async loginWithGoogle(dto: GoogleLoginDto) {
-    // 1. Verify access token with Google
-    const tokenInfo = await this.validateGoogleToken(dto.access_token);
+    // 1. Verify access token with Supabase (it's a Supabase JWT from the client)
+    const supabaseUser = await this.validateSupabaseToken(dto.access_token);
 
-    if (!tokenInfo) {
+    if (!supabaseUser) {
        throw new BadRequestException({
         success: false,
         message: 'Invalid access token',
