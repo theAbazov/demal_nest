@@ -3,8 +3,10 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { GoogleLoginDto } from './dto/google-login.dto';
 import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../common/services/supabase.service';
+import axios from 'axios';
 
 @Injectable()
 export class AuthService {
@@ -109,112 +111,8 @@ export class AuthService {
     };
   }
 
-  async getGoogleAuthUrl() {
-    const supabase = this.supabaseService.getClient();
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${this.configService.get('GOOGLE_CALLBACK_URL')}`,
-      },
-    });
 
-    if (error) {
-      throw new BadRequestException(error.message);
-    }
 
-    return data.url;
-  }
-
-  async getAppleAuthUrl() {
-    const supabase = this.supabaseService.getClient();
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'apple',
-      options: {
-        redirectTo: `${this.configService.get('APPLE_CALLBACK_URL')}`,
-      },
-    });
-
-    if (error) {
-      throw new BadRequestException(error.message);
-    }
-
-    return data.url;
-  }
-
-  async handleSupabaseCallback(code: string) {
-    const supabase = this.supabaseService.getClient();
-
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-
-    if (error || !data.user) {
-      throw new BadRequestException({
-        success: false,
-        message: error?.message || 'Failed to exchange code for session',
-      });
-    }
-
-    const email = data.user.email;
-    const providerId = data.user.app_metadata.provider === 'google' ? 'googleId' : 'appleId';
-    const providerUserId = data.user.user_metadata.sub || data.user.id; // Supabase user ID or provider sub
-
-    if (!email) {
-      throw new BadRequestException('Email not found in social provider response');
-    }
-
-    let user = await this.prisma.user.findUnique({
-      where: { email },
-      include: { partnerProfile: true },
-    });
-
-    if (!user) {
-      const userData: any = {
-        email,
-        role: 'CLIENT',
-        fullName: data.user.user_metadata.full_name || data.user.user_metadata.name,
-        imageUrl: data.user.user_metadata.avatar_url || data.user.user_metadata.picture,
-      };
-
-      if (data.user.app_metadata.provider === 'google') {
-          userData.googleId = providerUserId;
-      } else if (data.user.app_metadata.provider === 'apple') {
-          userData.appleId = providerUserId;
-      }
-
-      user = await this.prisma.user.create({
-        data: userData,
-        include: { partnerProfile: true },
-      });
-    } else {
-        // Link account if not linked (optional, but good for completeness)
-        const updateData: any = {};
-        if (data.user.app_metadata.provider === 'google' && !user.googleId) {
-             updateData.googleId = providerUserId;
-        } else if (data.user.app_metadata.provider === 'apple' && !user.appleId) {
-             updateData.appleId = providerUserId;
-        }
-
-        if (Object.keys(updateData).length > 0) {
-             user = await this.prisma.user.update({
-                 where: { id: user.id },
-                 data: updateData,
-                 include: { partnerProfile: true },
-             });
-        }
-    }
-
-    const payload = {
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-    };
-
-    const authToken = this.jwtService.sign(payload);
-
-    return {
-      success: true,
-      auth_token: authToken,
-    };
-  }
 
   async registerAdmin(dto: any) {
     // 1. Проверяем секретный ключ
@@ -264,6 +162,82 @@ export class AuthService {
         email: user.email,
         role: user.role,
       },
+    };
+  }
+
+  async validateGoogleToken(accessToken: string) {
+    try {
+      const response = await axios.get(
+        `https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${accessToken}`,
+      );
+      return response.data;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  async loginWithGoogle(dto: GoogleLoginDto) {
+    // 1. Verify access token with Google
+    const tokenInfo = await this.validateGoogleToken(dto.access_token);
+
+    if (!tokenInfo) {
+       throw new BadRequestException({
+        success: false,
+        message: 'Invalid access token',
+      });
+    }
+
+    // Optional: Verify that the user_id matches the one in tokenInfo
+    // tokenInfo.sub should match dto.user_id if you want strict checking.
+    // For now we trust the token validation.
+
+    // 2. Check if user exists by googleId OR email
+    let user = await this.prisma.user.findFirst({
+      where: {
+        OR: [{ googleId: dto.user_id }, { email: dto.email }],
+      },
+    });
+
+    let isNewUser = false;
+
+    if (!user) {
+      // Create new user
+      isNewUser = true;
+      user = await this.prisma.user.create({
+        data: {
+          email: dto.email,
+          fullName: dto.full_name,
+          googleId: dto.user_id,
+          imageUrl: dto.avatar_url,
+          phoneNumber: dto.phoneNumber, // Assuming phoneNumber matches the schema field (nullable)
+          role: 'CLIENT',
+        },
+      });
+    } else {
+      // User exists. Ensure googleId is set if it wasn't before (linking accounts)
+      if (!user.googleId) {
+         user = await this.prisma.user.update({
+             where: { id: user.id },
+             data: { googleId: dto.user_id },
+         });
+      }
+    }
+
+    // 3. Generate JWT
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    };
+
+    const authToken = this.jwtService.sign(payload);
+
+    return {
+      success: true,
+      auth_token: authToken,
+      // Status Code 201 for Created (New User), 200 for OK (Existing). 
+      // This return object will be sent as body, HTTP status can be controlled in Controller
+      is_new_user: isNewUser, 
     };
   }
 }

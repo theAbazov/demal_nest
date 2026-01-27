@@ -24,6 +24,7 @@ import { Public } from '../common/decorators/public.decorator';
 import { AuthGuard } from '@nestjs/passport';
 
 import { CreateAdminDto } from './dto/create-admin.dto';
+import { GoogleLoginDto } from './dto/google-login.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -91,60 +92,27 @@ export class AuthController {
     return await this.authService.verifyOtp(dto);
   }
 
-  @Get('google')
-  @ApiOperation({ summary: 'Авторизация через Google (Redirect)' })
-  @ApiResponse({ status: 302, description: 'Redirect to Google OAuth' })
-  async googleAuth(@Res() res) {
-    const url = await this.authService.getGoogleAuthUrl();
-    return res.redirect(url);
-  }
 
-  @Get('google/callback')
-  @ApiOperation({ summary: 'Google Callback (Возвращает токен)' })
+
+
+  @Public()
+  @Post('google')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Login with Google Token' })
+  @ApiBody({ type: GoogleLoginDto })
   @ApiResponse({
     status: 200,
-    description: 'Успешная авторизация',
+    description: 'Login successful',
     schema: {
       example: {
         success: true,
         auth_token: 'eyJhbGciOiJIUzI1NiIsIn...',
+        is_new_user: true
       },
     },
   })
-  async googleAuthRedirect(@Query('code') code: string, @Res() res) {
-    if (!code) {
-      return res.status(400).json({ success: false, message: 'No code provided' });
-    }
-    const result = await this.authService.handleSupabaseCallback(code);
-    return res.json(result);
-  }
-
-  @Get('apple')
-  @ApiOperation({ summary: 'Авторизация через Apple (Redirect)' })
-  @ApiResponse({ status: 302, description: 'Redirect to Apple OAuth' })
-  async appleAuth(@Res() res) {
-    const url = await this.authService.getAppleAuthUrl();
-    return res.redirect(url);
-  }
-
-  @Get('apple/callback')
-  @ApiOperation({ summary: 'Apple Callback (Возвращает токен)' })
-  @ApiResponse({
-    status: 200,
-    description: 'Успешная авторизация',
-    schema: {
-      example: {
-        success: true,
-        auth_token: 'eyJhbGciOiJIUzI1NiIsIn...',
-      },
-    },
-  })
-  async appleAuthRedirect(@Query('code') code: string, @Body('code') bodyCode: string, @Res() res) {
-     const authCode = code || bodyCode;
-      if (!authCode) {
-        return res.status(400).json({ success: false, message: 'No code provided' });
-      }
-    const result = await this.authService.handleSupabaseCallback(authCode);
-    return res.json(result);
+  @ApiResponse({ status: 401, description: 'Invalid Token' })
+  async googleLogin(@Body() dto: GoogleLoginDto) {
+    return await this.authService.loginWithGoogle(dto);
   }
 }
