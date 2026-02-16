@@ -32,6 +32,12 @@ enum BookingStatus {
   CANCELLED
 }
 
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
 enum OtpChannel {
   EMAIL
   SMS
@@ -116,10 +122,32 @@ model Booking {
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
 
-  tour Tour @relation(fields: [tourId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tour     Tour      @relation(fields: [tourId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments Payment[]
 
   @@map("bookings")
+}
+
+model Payment {
+  id                String      @id @default(uuid()) @db.Uuid
+  bookingId         String      @map("booking_id")
+  userId            String      @map("user_id")
+  provider          String      @default("FINIK") @db.VarChar(50)
+  requestId         String      @unique @map("request_id") @db.VarChar(255)
+  providerPaymentId String?     @map("provider_payment_id") @db.VarChar(255)
+  amount            Int
+  status            PaymentStatus @default(PENDING)
+  rawInitResponse   Json?       @map("raw_init_response")
+  rawWebhookPayload Json?       @map("raw_webhook_payload")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@index([status])
+  @@map("payments")
 }
 
 model Review {

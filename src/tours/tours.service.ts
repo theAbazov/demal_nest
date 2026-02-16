@@ -163,21 +163,11 @@ export class ToursService {
       this.prisma.tour.count({ where }),
     ]);
 
-    // Calculate average ratings and format tours
-    const formattedTours = await Promise.all(
-      tours.map(async (tour) => {
-        const reviews = await this.prisma.review.findMany({
-          where: { tourId: tour.id },
-          select: { rating: true },
-        });
-
-        const avgRating =
-          reviews.length > 0
-            ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
-            : null;
-
-        return this.formatTourResponse(tour as any, avgRating);
-      }),
+    const avgRatingsByTourId = await this.getAverageRatingsByTourIds(
+      tours.map((tour) => tour.id),
+    );
+    const formattedTours = tours.map((tour) =>
+      this.formatTourResponse(tour as any, avgRatingsByTourId[tour.id] ?? null),
     );
 
     // Sort by rating if needed
@@ -224,16 +214,7 @@ export class ToursService {
       throw new NotFoundException('Tour not found');
     }
 
-    // Get average rating
-    const reviews = await this.prisma.review.findMany({
-      where: { tourId: tour.id },
-      select: { rating: true },
-    });
-
-    const avgRating =
-      reviews.length > 0
-        ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
-        : null;
+    const avgRating = await this.getAverageRatingForTour(tour.id);
 
     return {
       success: true,
@@ -262,20 +243,11 @@ export class ToursService {
       this.prisma.tour.count({ where: { organizerId: userId } }),
     ]);
 
-    const formattedTours = await Promise.all(
-      tours.map(async (tour) => {
-        const reviews = await this.prisma.review.findMany({
-          where: { tourId: tour.id },
-          select: { rating: true },
-        });
-
-        const avgRating =
-          reviews.length > 0
-            ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
-            : null;
-
-        return this.formatTourResponse(tour as any, avgRating);
-      }),
+    const avgRatingsByTourId = await this.getAverageRatingsByTourIds(
+      tours.map((tour) => tour.id),
+    );
+    const formattedTours = tours.map((tour) =>
+      this.formatTourResponse(tour as any, avgRatingsByTourId[tour.id] ?? null),
     );
 
     return {
@@ -499,5 +471,34 @@ export class ToursService {
       created_at: tour.createdAt,
       updated_at: tour.updatedAt,
     };
+  }
+
+  private async getAverageRatingsByTourIds(tourIds: string[]) {
+    if (!tourIds.length) {
+      return {} as Record<string, number | null>;
+    }
+
+    const aggregated = await this.prisma.review.groupBy({
+      by: ['tourId'],
+      where: { tourId: { in: tourIds } },
+      _avg: { rating: true },
+    });
+
+    return aggregated.reduce(
+      (acc, item) => {
+        acc[item.tourId] = item._avg.rating ?? null;
+        return acc;
+      },
+      {} as Record<string, number | null>,
+    );
+  }
+
+  private async getAverageRatingForTour(tourId: string) {
+    const result = await this.prisma.review.aggregate({
+      where: { tourId },
+      _avg: { rating: true },
+    });
+
+    return result._avg.rating ?? null;
   }
 }
