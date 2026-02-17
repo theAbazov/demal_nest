@@ -3,7 +3,6 @@ import {
   IsString,
   IsInt,
   Min,
-  IsEmail,
   MaxLength,
   IsOptional,
 } from 'class-validator';
@@ -38,12 +37,12 @@ export class CreateBookingDto {
   name: string;
 
   @ApiProperty({
-    description: 'Email бронирующего',
-    example: 'ivan@example.com',
+    description: 'Телефон бронирующего',
+    example: '+996 (555) 123-456',
     required: false,
   })
   @IsOptional()
-  @IsEmail()
+  @IsString()
   @MaxLength(255)
-  email?: string;
+  phone?: string;
 }

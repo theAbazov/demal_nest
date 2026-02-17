@@ -43,7 +43,7 @@ export class BookingsService {
           seatsCount: dto.seats_count,
           totalAmount,
           name: dto.name,
-          email: dto.email,
+          email: dto.phone,
           status: 'PENDING',
         },
         include: {
@@ -199,7 +199,7 @@ export class BookingsService {
       total_amount: Number(booking.totalAmount),
       status: booking.status,
       name: booking.name,
-      email: booking.email,
+      phone: booking.email,
       created_at: booking.createdAt,
     };
   }

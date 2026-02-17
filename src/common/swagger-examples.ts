@@ -161,7 +161,7 @@ export const SwaggerExamples = {
       total_amount: 10000,
       status: 'PENDING',
       name: 'Иван Петров',
-      email: 'ivan@example.com',
+      phone: '+996 (555) 123-456',
       created_at: '2024-01-01T00:00:00.000Z',
     },
   },

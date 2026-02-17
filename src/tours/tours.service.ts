@@ -390,7 +390,7 @@ export class ToursService {
         total_amount: booking.totalAmount,
         status: booking.status,
         name: booking.name,
-        email: booking.email,
+        phone: booking.email,
         created_at: booking.createdAt,
       })),
     };
