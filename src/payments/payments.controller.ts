@@ -38,13 +38,16 @@ export class PaymentsController {
   @ApiResponse({ status: 200, description: 'Webhook handled' })
   async handleFinikWebhook(
     @Body() payload: Record<string, unknown>,
-    @Req() req: Request & { rawBody?: Buffer },
+    @Req() req: Request,
+    @Headers('signature') signature?: string,
+    @Headers('x-signature') legacySignature?: string,
     @Headers('x-finik-signature') finikSignature?: string,
-    @Headers('x-signature') signature?: string,
   ) {
-    const rawBody = req.rawBody || Buffer.from(JSON.stringify(payload));
-    this.paymentsService.verifyWebhookSignature(rawBody, finikSignature || signature);
-
+    await this.paymentsService.verifyFinikWebhookSignature(
+      req,
+      payload,
+      signature || legacySignature || finikSignature,
+    );
     await this.paymentsService.processFinikWebhook(payload);
 
     return { ok: true };
@@ -55,12 +58,16 @@ export class PaymentsController {
   @HttpCode(HttpStatus.OK)
   async handleFinikWebhookLegacy(
     @Body() payload: Record<string, unknown>,
-    @Req() req: Request & { rawBody?: Buffer },
+    @Req() req: Request,
+    @Headers('signature') signature?: string,
+    @Headers('x-signature') legacySignature?: string,
     @Headers('x-finik-signature') finikSignature?: string,
-    @Headers('x-signature') signature?: string,
   ) {
-    const rawBody = req.rawBody || Buffer.from(JSON.stringify(payload));
-    this.paymentsService.verifyWebhookSignature(rawBody, finikSignature || signature);
+    await this.paymentsService.verifyFinikWebhookSignature(
+      req,
+      payload,
+      signature || legacySignature || finikSignature,
+    );
     await this.paymentsService.processFinikWebhook(payload);
     return { ok: true };
   }

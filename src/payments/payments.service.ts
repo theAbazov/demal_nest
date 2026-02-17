@@ -8,9 +8,10 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { PaymentStatus, Prisma } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
-import { createHmac, randomUUID, timingSafeEqual } from 'crypto';
+import { PaymentStatus, Prisma } from '@prisma/client';
+import { createVerify, randomUUID } from 'crypto';
+import { Request } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 import { FinikClientService } from './finik-client.service';
 import { InitPaymentDto } from './dto/init-payment.dto';
@@ -24,6 +25,26 @@ interface FinikWebhookPayload {
   [key: string]: unknown;
 }
 
+const FINIK_PROD_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuF/PUmhMPPidcMxhZBPb
+BSGJoSphmCI+h6ru8fG8guAlcPMVlhs+ThTjw2LHABvciwtpj51ebJ4EqhlySPyT
+hqSfXI6Jp5dPGJNDguxfocohaz98wvT+WAF86DEglZ8dEsfoumojFUy5sTOBdHEu
+g94B4BbrJvjmBa1YIx9Azse4HFlWhzZoYPgyQpArhokeHOHIN2QFzJqeriANO+wV
+aUMta2AhRVZHbfyJ36XPhGO6A5FYQWgjzkI65cxZs5LaNFmRx6pjnhjIeVKKgF99
+4OoYCzhuR9QmWkPl7tL4Kd68qa/xHLz0Psnuhm0CStWOYUu3J7ZpzRK8GoEXRcr8
+tQIDAQAB
+-----END PUBLIC KEY-----`;
+
+const FINIK_BETA_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwlrlKz/8gLWd1ARWGA/8
+o3a3Qy8G+hPifyqiPosiTY6nCHovANMIJXk6DH4qAqqZeLu8pLGxudkPbv8dSyG7
+F9PZEAryMPzjoB/9P/F6g0W46K/FHDtwTM3YIVvstbEbL19m8yddv/xCT9JPPJTb
+LsSTVZq5zCqvKzpupwlGS3Q3oPyLAYe+ZUn4Bx2J1WQrBu3b08fNaR3E8pAkCK27
+JqFnP0eFfa817VCtyVKcFHb5ij/D0eUP519Qr/pgn+gsoG63W4pPHN/pKwQUUiAy
+uLSHqL5S2yu1dffyMcMVi9E/Q2HCTcez5OvOllgOtkNYHSv9pnrMRuws3u87+hNT
+ZwIDAQAB
+-----END PUBLIC KEY-----`;
+
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
@@ -33,6 +54,119 @@ export class PaymentsService {
     private readonly finikClientService: FinikClientService,
     private readonly configService: ConfigService,
   ) {}
+
+  verifyFinikWebhookSignature(
+    req: Request,
+    payload: Record<string, unknown>,
+    signature: string | undefined,
+  ) {
+    if (!signature) {
+      throw new UnauthorizedException({
+        error: 'WEBHOOK_SIGNATURE_MISSING',
+        message: 'Finik webhook signature is required',
+      });
+    }
+
+    const data = this.buildFinikSignaturePayload(req, payload);
+    const verifier = createVerify('RSA-SHA256');
+    verifier.update(data, 'utf8');
+    verifier.end();
+
+    const finikEnv = (this.configService.get<string>('FINIK_ENV') || 'production').toLowerCase();
+    const publicKey = finikEnv === 'beta' ? FINIK_BETA_PUBLIC_KEY : FINIK_PROD_PUBLIC_KEY;
+
+    const isValid = verifier.verify(publicKey, signature, 'base64');
+    if (!isValid) {
+      throw new UnauthorizedException({
+        error: 'WEBHOOK_SIGNATURE_INVALID',
+        message: 'Finik webhook signature is invalid',
+      });
+    }
+  }
+
+  private buildFinikSignaturePayload(req: Request, payload: Record<string, unknown>) {
+    const method = req.method.toLowerCase();
+    const uriAbsolutePath = req.path;
+    const headersPart = this.buildSignedHeadersPart(req);
+    const queryString = this.buildSortedQueryString(req.originalUrl || req.url);
+    const jsonPayload = JSON.stringify(this.sortJsonKeys(payload));
+
+    if (queryString) {
+      return `${method}\n${uriAbsolutePath}\n${headersPart}\n${queryString}\n${jsonPayload}`;
+    }
+
+    return `${method}\n${uriAbsolutePath}\n${headersPart}\n${jsonPayload}`;
+  }
+
+  private buildSignedHeadersPart(req: Request) {
+    const headers = req.headers || {};
+    const relevantHeaders: Array<[string, string]> = [];
+
+    const hostHeader = headers.host;
+    if (hostHeader) {
+      relevantHeaders.push(['host', this.normalizeHeaderValue(hostHeader)]);
+    } else {
+      relevantHeaders.push(['host', '']);
+    }
+
+    for (const [name, value] of Object.entries(headers)) {
+      const lowered = name.toLowerCase();
+      if (lowered.startsWith('x-api-')) {
+        relevantHeaders.push([lowered, this.normalizeHeaderValue(value)]);
+      }
+    }
+
+    relevantHeaders.sort(([a], [b]) => a.localeCompare(b));
+    return relevantHeaders.map(([k, v]) => `${k}:${v}`).join('&');
+  }
+
+  private buildSortedQueryString(fullUrl: string) {
+    const queryIndex = fullUrl.indexOf('?');
+    if (queryIndex === -1 || queryIndex === fullUrl.length - 1) {
+      return '';
+    }
+
+    const rawQuery = fullUrl.slice(queryIndex + 1);
+    const params = new URLSearchParams(rawQuery);
+    const pairs: Array<[string, string]> = [];
+    params.forEach((value, key) => {
+      pairs.push([key, value ?? '']);
+    });
+
+    pairs.sort(([aKey, aVal], [bKey, bVal]) => {
+      const byKey = aKey.localeCompare(bKey);
+      if (byKey !== 0) return byKey;
+      return aVal.localeCompare(bVal);
+    });
+
+    return pairs
+      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+      .join('&');
+  }
+
+  private normalizeHeaderValue(value: string | string[] | undefined) {
+    if (!value) return '';
+    return Array.isArray(value) ? value.join(',') : String(value);
+  }
+
+  private sortJsonKeys(value: unknown): unknown {
+    if (Array.isArray(value)) {
+      return value.map((item) => this.sortJsonKeys(item));
+    }
+
+    if (value && typeof value === 'object') {
+      const sortedEntries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) =>
+        a.localeCompare(b),
+      );
+      const sortedObject: Record<string, unknown> = {};
+      for (const [key, nestedValue] of sortedEntries) {
+        sortedObject[key] = this.sortJsonKeys(nestedValue);
+      }
+      return sortedObject;
+    }
+
+    return value;
+  }
 
   async initPayment(userId: string, dto: InitPaymentDto) {
     try {
@@ -157,42 +291,6 @@ export class PaymentsService {
       }
 
       throw error;
-    }
-  }
-
-  verifyWebhookSignature(rawBody: Buffer, signature: string | undefined) {
-    const secret = this.configService.get<string>('FINIK_WEBHOOK_SECRET');
-
-    if (!secret) {
-      throw new BadRequestException({
-        error: 'FINIK_WEBHOOK_SECRET_MISSING',
-        message: 'FINIK_WEBHOOK_SECRET is not configured',
-      });
-    }
-
-    if (!signature) {
-      throw new UnauthorizedException({
-        error: 'WEBHOOK_SIGNATURE_MISSING',
-        message: 'Webhook signature is required',
-      });
-    }
-
-    const expectedDigest = createHmac('sha256', secret).update(rawBody).digest('hex');
-    const normalizedSignature = signature.startsWith('sha256=')
-      ? signature.slice('sha256='.length)
-      : signature;
-
-    const expected = Buffer.from(expectedDigest, 'utf8');
-    const received = Buffer.from(normalizedSignature, 'utf8');
-
-    const isValid =
-      expected.length === received.length && timingSafeEqual(expected, received);
-
-    if (!isValid) {
-      throw new UnauthorizedException({
-        error: 'WEBHOOK_SIGNATURE_INVALID',
-        message: 'Webhook signature is invalid',
-      });
     }
   }
 
