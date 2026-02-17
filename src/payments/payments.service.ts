@@ -8,9 +8,10 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Signer } from '@mancho.devs/authorizer';
 import { ConfigService } from '@nestjs/config';
 import { PaymentStatus, Prisma } from '@prisma/client';
-import { createVerify, randomUUID } from 'crypto';
+import { randomUUID } from 'crypto';
 import { Request } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 import { FinikClientService } from './finik-client.service';
@@ -62,7 +63,7 @@ export class PaymentsService {
     private readonly configService: ConfigService,
   ) {}
 
-  verifyFinikWebhookSignature(
+  async verifyFinikWebhookSignature(
     req: Request,
     payload: Record<string, unknown>,
     signature: string | undefined,
@@ -85,20 +86,20 @@ export class PaymentsService {
       });
     }
 
-    const data = this.buildFinikSignaturePayload(req, payload);
-    const verifier = createVerify('RSA-SHA256');
-    verifier.update(data, 'utf8');
-    verifier.end();
-
     const finikEnv = (this.configService.get<string>('FINIK_ENV') || 'production').toLowerCase();
     const publicKey = finikEnv === 'beta' ? FINIK_BETA_PUBLIC_KEY : FINIK_PROD_PUBLIC_KEY;
+    const requestData = this.buildAuthorizerRequestData(req, payload);
+    
+    // Explicitly using console.log to see the exact structure being passed to Signer
+    console.log('Finik Verifier Request Data:', JSON.stringify(requestData, null, 2));
 
-    const isValid = verifier.verify(publicKey, signature, 'base64');
+    const isValid = await new Signer(requestData).verify(publicKey, signature);
     if (!isValid) {
       this.logger.warn('WEBHOOK_VERIFY_INVALID_SIGNATURE', {
         path: req.path,
         finikEnv,
         signatureLength: signature.length,
+        signature, // Log the received signature for debugging
       });
       throw new UnauthorizedException({
         error: 'WEBHOOK_SIGNATURE_INVALID',
@@ -112,88 +113,60 @@ export class PaymentsService {
     });
   }
 
-  private buildFinikSignaturePayload(req: Request, payload: Record<string, unknown>) {
-    const method = req.method.toLowerCase();
-    const uriAbsolutePath = req.path;
-    const headersPart = this.buildSignedHeadersPart(req);
-    const queryString = this.buildSortedQueryString(req.originalUrl || req.url);
-    const jsonPayload = JSON.stringify(this.sortJsonKeys(payload));
-
-    if (queryString) {
-      return `${method}\n${uriAbsolutePath}\n${headersPart}\n${queryString}\n${jsonPayload}`;
+  private buildAuthorizerRequestData(req: Request, payload: Record<string, unknown>) {
+    const headers: Record<string, string | undefined> = {};
+    
+    // The @mancho.devs/authorizer library specifically looks for 'Host' (capitalized)
+    // in the headers object. Since express/node lowercases headers, we must manually
+    // set 'Host' with a capital H.
+    const host = req.headers['host'];
+    if (host) {
+        headers['Host'] = String(host);
     }
 
-    return `${method}\n${uriAbsolutePath}\n${headersPart}\n${jsonPayload}`;
-  }
-
-  private buildSignedHeadersPart(req: Request) {
-    const headers = req.headers || {};
-    const relevantHeaders: Array<[string, string]> = [];
-
-    const hostHeader = headers.host;
-    if (hostHeader) {
-      relevantHeaders.push(['host', this.normalizeHeaderValue(hostHeader)]);
-    } else {
-      relevantHeaders.push(['host', '']);
-    }
-
-    for (const [name, value] of Object.entries(headers)) {
-      const lowered = name.toLowerCase();
-      if (lowered.startsWith('x-api-')) {
-        relevantHeaders.push([lowered, this.normalizeHeaderValue(value)]);
+    // Include other x-api- headers
+    for (const [name, value] of Object.entries(req.headers || {})) {
+      if (name.toLowerCase().startsWith('x-api-')) {
+          headers[name] = this.normalizeHeaderValue(value);
       }
     }
 
-    relevantHeaders.sort(([a], [b]) => a.localeCompare(b));
-    return relevantHeaders.map(([k, v]) => `${k}:${v}`).join('&');
+    return {
+      body: payload,
+      headers,
+      httpMethod: req.method,
+      // @mancho.devs/authorizer might expect the full path or just the path
+      // usually it's req.path or req.originalUrl without query params
+      path: req.path, 
+      queryStringParameters: this.buildQueryStringParams(req.originalUrl || req.url),
+    };
   }
 
-  private buildSortedQueryString(fullUrl: string) {
+  private buildQueryStringParams(fullUrl: string): Record<string, string | undefined> | null {
     const queryIndex = fullUrl.indexOf('?');
     if (queryIndex === -1 || queryIndex === fullUrl.length - 1) {
-      return '';
+      return null;
     }
 
     const rawQuery = fullUrl.slice(queryIndex + 1);
-    const params = new URLSearchParams(rawQuery);
-    const pairs: Array<[string, string]> = [];
-    params.forEach((value, key) => {
-      pairs.push([key, value ?? '']);
-    });
+    const parts = rawQuery.split('&').filter(Boolean);
+    if (!parts.length) return null;
 
-    pairs.sort(([aKey, aVal], [bKey, bVal]) => {
-      const byKey = aKey.localeCompare(bKey);
-      if (byKey !== 0) return byKey;
-      return aVal.localeCompare(bVal);
-    });
+    const queryParams: Record<string, string | undefined> = {};
+    for (const part of parts) {
+      const [rawKey, rawValue] = part.split('=', 2);
+      const key = decodeURIComponent(rawKey || '');
+      if (!key) continue;
+      queryParams[key] =
+        rawValue === undefined ? undefined : decodeURIComponent(rawValue.replace(/\+/g, ' '));
+    }
 
-    return pairs
-      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
-      .join('&');
+    return Object.keys(queryParams).length ? queryParams : null;
   }
 
   private normalizeHeaderValue(value: string | string[] | undefined) {
     if (!value) return '';
     return Array.isArray(value) ? value.join(',') : String(value);
-  }
-
-  private sortJsonKeys(value: unknown): unknown {
-    if (Array.isArray(value)) {
-      return value.map((item) => this.sortJsonKeys(item));
-    }
-
-    if (value && typeof value === 'object') {
-      const sortedEntries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) =>
-        a.localeCompare(b),
-      );
-      const sortedObject: Record<string, unknown> = {};
-      for (const [key, nestedValue] of sortedEntries) {
-        sortedObject[key] = this.sortJsonKeys(nestedValue);
-      }
-      return sortedObject;
-    }
-
-    return value;
   }
 
   async initPayment(userId: string, dto: InitPaymentDto) {
