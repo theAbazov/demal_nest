@@ -10,6 +10,7 @@ import {
   Req,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Logger } from '@nestjs/common';
 import { Request } from 'express';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
@@ -20,6 +21,8 @@ import { PaymentsService } from './payments.service';
 @ApiTags('Payments')
 @Controller()
 export class PaymentsController {
+  private readonly logger = new Logger(PaymentsController.name);
+
   constructor(private readonly paymentsService: PaymentsService) {}
 
   @Roles('CLIENT')
@@ -43,12 +46,30 @@ export class PaymentsController {
     @Headers('x-signature') legacySignature?: string,
     @Headers('x-finik-signature') finikSignature?: string,
   ) {
-    await this.paymentsService.verifyFinikWebhookSignature(
-      req,
-      payload,
-      signature || legacySignature || finikSignature,
-    );
-    await this.paymentsService.processFinikWebhook(payload);
+    const resolvedSignature = signature || legacySignature || finikSignature;
+    this.logger.log('WEBHOOK_IN', {
+      path: req.path,
+      hasSignature: Boolean(resolvedSignature),
+      signatureHeader: signature ? 'signature' : legacySignature ? 'x-signature' : finikSignature ? 'x-finik-signature' : null,
+      payloadStatus: payload?.status,
+      payloadRequestId: (payload as any)?.request_id || (payload as any)?.requestId || (payload as any)?.fields?.requestId,
+      payloadTransactionId: (payload as any)?.transaction_id || (payload as any)?.transactionId,
+    });
+
+    try {
+      await this.paymentsService.verifyFinikWebhookSignature(req, payload, resolvedSignature);
+      await this.paymentsService.processFinikWebhook(payload);
+      this.logger.log('WEBHOOK_DONE', {
+        path: req.path,
+        payloadStatus: payload?.status,
+      });
+    } catch (error) {
+      this.logger.error('WEBHOOK_FAILED', {
+        path: req.path,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
 
     return { ok: true };
   }
@@ -63,12 +84,30 @@ export class PaymentsController {
     @Headers('x-signature') legacySignature?: string,
     @Headers('x-finik-signature') finikSignature?: string,
   ) {
-    await this.paymentsService.verifyFinikWebhookSignature(
-      req,
-      payload,
-      signature || legacySignature || finikSignature,
-    );
-    await this.paymentsService.processFinikWebhook(payload);
+    const resolvedSignature = signature || legacySignature || finikSignature;
+    this.logger.log('WEBHOOK_IN_LEGACY', {
+      path: req.path,
+      hasSignature: Boolean(resolvedSignature),
+      signatureHeader: signature ? 'signature' : legacySignature ? 'x-signature' : finikSignature ? 'x-finik-signature' : null,
+      payloadStatus: payload?.status,
+      payloadRequestId: (payload as any)?.request_id || (payload as any)?.requestId || (payload as any)?.fields?.requestId,
+      payloadTransactionId: (payload as any)?.transaction_id || (payload as any)?.transactionId,
+    });
+
+    try {
+      await this.paymentsService.verifyFinikWebhookSignature(req, payload, resolvedSignature);
+      await this.paymentsService.processFinikWebhook(payload);
+      this.logger.log('WEBHOOK_DONE_LEGACY', {
+        path: req.path,
+        payloadStatus: payload?.status,
+      });
+    } catch (error) {
+      this.logger.error('WEBHOOK_FAILED_LEGACY', {
+        path: req.path,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
     return { ok: true };
   }
 
