@@ -91,6 +91,18 @@ export class BookingsService {
               price: true,
             },
           },
+          payments: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: {
+              status: true,
+              provider: true,
+              amount: true,
+              requestId: true,
+              providerPaymentId: true,
+              updatedAt: true,
+            },
+          },
         },
       }),
       this.prisma.booking.count({ where: { userId } }),
@@ -198,6 +210,17 @@ export class BookingsService {
       seats_count: booking.seatsCount,
       total_amount: Number(booking.totalAmount),
       status: booking.status,
+      payment_details: booking.payments?.[0]
+        ? {
+            status: booking.payments[0].status,
+            provider: booking.payments[0].provider,
+            amount: booking.payments[0].amount,
+            currency: 'KGS', 
+            transaction_id: booking.payments[0].providerPaymentId,
+            payment_date: booking.payments[0].updatedAt,
+            request_id: booking.payments[0].requestId,
+          }
+        : null,
       name: booking.name,
       phone: booking.email,
       created_at: booking.createdAt,

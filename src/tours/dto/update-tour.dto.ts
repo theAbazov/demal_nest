@@ -10,7 +10,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { CreateTourDto } from './create-tour.dto';
+import { CreateTourDto, MeetingPointDto } from './create-tour.dto';
 
 export class UpdateTourDto implements Partial<CreateTourDto> {
   @IsOptional()
@@ -65,8 +65,8 @@ export class UpdateTourDto implements Partial<CreateTourDto> {
 
   @IsOptional()
   @ValidateNested()
-  @Type(() => Object)
-  meeting_point?: any;
+  @Type(() => MeetingPointDto)
+  meeting_point?: MeetingPointDto;
 
   @IsOptional()
   @IsArray()
