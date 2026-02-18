@@ -375,6 +375,15 @@ export class ToursService {
             id: true,
             fullName: true,
             phoneNumber: true,
+            email: true,
+            imageUrl: true,
+          },
+        },
+        payments: {
+          select: {
+            provider: true,
+            status: true,
+            amount: true,
           },
         },
       },
@@ -391,6 +400,15 @@ export class ToursService {
         status: booking.status,
         name: booking.name,
         phone: booking.email,
+        email: booking.user.email,
+        payment_info: booking.payments[0]
+          ? {
+              provider: booking.payments[0].provider,
+              status: booking.payments[0].status,
+              amount: booking.payments[0].amount,
+            }
+          : null,
+        updated_at: booking.updatedAt,
         created_at: booking.createdAt,
       })),
     };
