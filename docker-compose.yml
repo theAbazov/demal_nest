@@ -10,15 +10,15 @@ services:
     container_name: demal-nest-app
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - '3001:3000'
     environment:
       # Database (используется внешний PostgreSQL)
       - DATABASE_URL=${DATABASE_URL}
-      
+
       # JWT
       - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-7d}
-      
+
       # MinIO (используется внешний MinIO)
       - MINIO_ENDPOINT=${MINIO_ENDPOINT}
       - MINIO_PORT=${MINIO_PORT:-9000}
@@ -27,7 +27,7 @@ services:
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
       - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME}
       - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL}
-      
+
       # Application
       - NODE_ENV=${NODE_ENV:-production}
       - PORT=${PORT:-3000}
@@ -40,11 +40,17 @@ services:
     # Добавляем host.docker.internal для доступа к сервисам на хосте (Windows/Mac)
     # Для Linux может потребоваться использовать IP адрес хоста или network_mode: "host"
     extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - 'host.docker.internal:host-gateway'
     networks:
       - demal-network
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/v1', (r) => {process.exit(r.statusCode >= 200 && r.statusCode < 500 ? 0 : 1)})"]
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://localhost:3000/api/v1', (r) => {process.exit(r.statusCode >= 200 && r.statusCode < 500 ? 0 : 1)})",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -114,7 +120,6 @@ services:
 networks:
   demal-network:
     driver: bridge
-
 # Volumes закомментированы, так как внешние сервисы не используют Docker volumes
 # volumes:
 #   postgres_data:
