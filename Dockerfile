@@ -80,4 +80,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/api/v1', (r) => {process.exit(r.statusCode >= 200 && r.statusCode < 500 ? 0 : 1)})"
 
 # Запуск приложения
-CMD ["node", "dist/src/main.js"]
+CMD ["node", "dist/main.js"]
