@@ -1,30 +1,23 @@
 import {
   Controller,
   Post,
-  Get,
   Body,
   HttpCode,
   HttpStatus,
-  UseGuards,
-  Req,
-  Res,
-  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBody,
-  ApiHeader,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { Public } from '../common/decorators/public.decorator';
-import { AuthGuard } from '@nestjs/passport';
-
 import { CreateAdminDto } from './dto/create-admin.dto';
 import { GoogleLoginDto } from './dto/google-login.dto';
+import { AppleLoginDto } from './dto/apple-login.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -92,9 +85,6 @@ export class AuthController {
     return await this.authService.verifyOtp(dto);
   }
 
-
-
-
   @Public()
   @Post('google')
   @HttpCode(HttpStatus.OK)
@@ -114,5 +104,26 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Invalid Token' })
   async googleLogin(@Body() dto: GoogleLoginDto) {
     return await this.authService.loginWithGoogle(dto);
+  }
+
+  @Public()
+  @Post('apple')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Login with Apple Token' })
+  @ApiBody({ type: AppleLoginDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Login successful',
+    schema: {
+      example: {
+        success: true,
+        auth_token: 'eyJhbGciOiJIUzI1NiIsIn...',
+        is_new_user: true
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Invalid Token' })
+  async appleLogin(@Body() dto: AppleLoginDto) {
+    return await this.authService.loginWithApple(dto);
   }
 }

@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { GoogleLoginDto } from './dto/google-login.dto';
+import { AppleLoginDto } from './dto/apple-login.dto';
 import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../common/services/supabase.service';
 
@@ -18,6 +19,15 @@ export class AuthService {
   ) {}
 
   async sendOtp(dto: SendOtpDto) {
+    const isTestEmail = dto.email === 'client@gmail.com' || dto.email === 'partner@gmail.com';
+
+    if (isTestEmail) {
+      return {
+        success: true,
+        message: `Код отправлен на email ${dto.email} (тестовый аккаунт)`,
+      };
+    }
+
     const supabase = this.supabaseService.getClient();
 
     const { error } = await supabase.auth.signInWithOtp({
@@ -56,10 +66,9 @@ export class AuthService {
       data = response.data;
       error = response.error;
     } else {
-      // Mock Supabase user for test accounts
       data.user = {
         email: dto.email,
-        id: 'test-user-' + dto.email, // Placeholder ID
+        id: 'test-user-' + dto.email,
       };
     }
 
@@ -70,10 +79,6 @@ export class AuthService {
         message: error?.message || 'Неверный код подтверждения',
       });
     }
-
-    // Ищем или создаем пользователя в нашей базе
-    // Note: data.user contains Supabase user info. We might want to link it via supabase_id if we store it.
-    // For now, we continue reliance on email as unique identifier for our DB.
 
     let user = await this.prisma.user.findUnique({
       where: { email: dto.email },
@@ -96,7 +101,6 @@ export class AuthService {
       });
     }
 
-    // Генерируем НАШ JWT токен (не Supabase session)
     const payload = {
       sub: user.id,
       email: user.email,
@@ -112,23 +116,18 @@ export class AuthService {
   }
 
 
-
-
   async registerAdmin(dto: any) {
-    // 1. Проверяем секретный ключ
     const adminSecret = this.configService.get('ADMIN_REGISTRATION_SECRET');
     
     if (dto.secret_key !== adminSecret) {
       throw new BadRequestException('Invalid secret key');
     }
 
-    // 2. Ищем или создаем пользователя
     let user = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
 
     if (!user) {
-      // Если пользователя нет, создаем сразу админа
       user = await this.prisma.user.create({
         data: {
           email: dto.email,
@@ -136,7 +135,6 @@ export class AuthService {
         },
       });
     } else {
-      // Если есть, обновляем роль
       if (user.role !== 'ADMIN') {
         user = await this.prisma.user.update({
           where: { id: user.id },
@@ -145,7 +143,6 @@ export class AuthService {
       }
     }
 
-    // 3. Выдаем токен
     const payload = {
       sub: user.id,
       email: user.email,
@@ -176,7 +173,6 @@ export class AuthService {
   }
 
   async loginWithGoogle(dto: GoogleLoginDto) {
-    // 1. Verify access token with Supabase (it's a Supabase JWT from the client)
     const supabaseUser = await this.validateSupabaseToken(dto.access_token);
 
     if (!supabaseUser) {
@@ -186,11 +182,6 @@ export class AuthService {
       });
     }
 
-    // Optional: Verify that the user_id matches the one in tokenInfo
-    // tokenInfo.sub should match dto.user_id if you want strict checking.
-    // For now we trust the token validation.
-
-    // 2. Check if user exists by googleId OR email
     let user = await this.prisma.user.findFirst({
       where: {
         OR: [{ googleId: dto.user_id }, { email: dto.email }],
@@ -200,7 +191,6 @@ export class AuthService {
     let isNewUser = false;
 
     if (!user) {
-      // Create new user
       isNewUser = true;
       user = await this.prisma.user.create({
         data: {
@@ -208,12 +198,11 @@ export class AuthService {
           fullName: dto.full_name,
           googleId: dto.user_id,
           imageUrl: dto.avatar_url,
-          phoneNumber: dto.phoneNumber, // Assuming phoneNumber matches the schema field (nullable)
+          phoneNumber: dto.phoneNumber,
           role: 'CLIENT',
         },
       });
     } else {
-      // User exists. Ensure googleId is set if it wasn't before (linking accounts)
       if (!user.googleId) {
          user = await this.prisma.user.update({
              where: { id: user.id },
@@ -222,7 +211,6 @@ export class AuthService {
       }
     }
 
-    // 3. Generate JWT
     const payload = {
       sub: user.id,
       email: user.email,
@@ -234,8 +222,59 @@ export class AuthService {
     return {
       success: true,
       auth_token: authToken,
-      // Status Code 201 for Created (New User), 200 for OK (Existing). 
-      // This return object will be sent as body, HTTP status can be controlled in Controller
+      is_new_user: isNewUser, 
+    };
+  }
+
+  async loginWithApple(dto: AppleLoginDto) {
+    const supabaseUser = await this.validateSupabaseToken(dto.access_token);
+
+    if (!supabaseUser) {
+       throw new BadRequestException({
+        success: false,
+        message: 'Invalid access token',
+      });
+    }
+
+    let user = await this.prisma.user.findFirst({
+      where: {
+        OR: [{ appleId: dto.user_id }, { email: dto.email }],
+      },
+    });
+
+    let isNewUser = false;
+
+    if (!user) {
+      isNewUser = true;
+      user = await this.prisma.user.create({
+        data: {
+          email: dto.email,
+          fullName: dto.full_name,
+          appleId: dto.user_id,
+          phoneNumber: dto.phoneNumber,
+          role: 'CLIENT',
+        },
+      });
+    } else {
+      if (!user.appleId) {
+         user = await this.prisma.user.update({
+             where: { id: user.id },
+             data: { appleId: dto.user_id },
+         });
+      }
+    }
+
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    };
+
+    const authToken = this.jwtService.sign(payload);
+
+    return {
+      success: true,
+      auth_token: authToken,
       is_new_user: isNewUser, 
     };
   }

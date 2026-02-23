@@ -52,6 +52,7 @@ model User {
   fullName     String?  @map("full_name") @db.VarChar(255)
   role         Role     @default(CLIENT)
   googleId     String?  @unique @map("google_id") @db.VarChar(255)
+  appleId      String?  @unique @map("apple_id") @db.VarChar(255)
   createdAt    DateTime @default(now()) @map("created_at")
   imageUrl     String?  @map("image_url") @db.VarChar(500)
 
